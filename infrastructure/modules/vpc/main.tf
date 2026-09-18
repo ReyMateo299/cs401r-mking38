@@ -39,3 +39,63 @@ resource "aws_subnet" "public" {
     Tier = "public"
   }
 }
+
+resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
+
+  tags = {
+    Name = "${var.project}-${var.environment}-igw"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this.id
+  }
+
+  tags = {
+    Name = "${var.project}-${var.environment}-public-rt"
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
+# Inbound is limited to the VPC CIDR: Studio has a public IP in Lab 1, but
+# nothing on the internet can open a connection to it. Outbound is open so
+# Studio can pull kernel images from ECR and reach S3.
+#
+# Descriptions are plain ASCII on purpose. EC2 rejects any non-ASCII
+# character in a security group description at apply time, and neither
+# terraform validate nor LocalStack will warn you first.
+
+resource "aws_security_group" "this" {
+  name        = "${var.project}-${var.environment}-sagemaker-sg"
+  description = "SageMaker Studio - inbound from VPC CIDR only, all outbound"
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description = "All traffic from inside the VPC"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "All outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project}-${var.environment}-sagemaker-sg"
+  }
+}
