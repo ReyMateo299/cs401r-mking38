@@ -4,17 +4,17 @@
 #
 # Uncomment each block as you implement the module it calls.
 
-# module "vpc" {
-#   source      = "../../modules/vpc"
-#   project     = var.project
-#   environment = var.environment
-# }
+module "vpc" {
+  source      = "../../modules/vpc"
+  project     = var.project
+  environment = var.environment
+}
 
-# module "storage" {
-#   source      = "../../modules/storage"
-#   project     = var.project
-#   environment = var.environment
-# }
+module "storage" {
+  source      = "../../modules/storage"
+  project     = var.project
+  environment = var.environment
+}
 
 # module "iam" {
 #   source      = "../../modules/iam"
