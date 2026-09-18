@@ -1,0 +1,1010 @@
+---
+tags: [CS401R, lab-solution, lab-1, AWS, terraform, TA-guide]
+course: CS 401R
+lab: 1b
+status: answer-key
+synced_to: Lab_1--Platform Foundation.md (2026-09-16)
+reference_repo: Sample Solutions/cs401r-stoborg @ lab1-submit
+---
+
+# Lab 1b — Terraform Execution (Terraform Steps)
+
+> **For TA / instructor use.** Step-by-step Terraform walkthrough for Part B of [[Lab_1--Platform Foundation]]. Companion to [[Lab_1a--Solution Notes (Manual Steps)]]. Every step maps to a rubric row. The code blocks under Phase 1 are the answer key — they are the exact files at the `lab1-submit` tag of the reference repo (`Sample Solutions/cs401r-stoborg`).
+
+> **Verification status (2026-09-14, account `711457211658`):** The reference repo was built from the `cs401r-lab1-template` starter kit and run end-to-end: `make local-validate` against LocalStack 4 (21:09 UTC), `bootstrap-state.sh` twice (second run all `[SKIP]`), `terraform apply` (**19 added, 2 m 29 s**), `verify-lab1.sh` (**28 passed, 0 failed**), Studio launched and shut down through the UI, `terraform destroy` (**19 destroyed, 69 s**, no orphans). Terraform 1.16.1, provider `hashicorp/aws` 5.100.0. **Not verified:** the brand-new-account path — this account already had `AWSServiceRoleForAmazonSageMakerNotebooks`, so the service-linked-role failure in Step 0.4 was not reproduced.
+
+**Wall-time budget:** ~90–120 minutes of work, of which about 15 minutes is waiting on AWS. This note is organized in **execution order**, not rubric order. The lab guide lists tasks B1→B5 because that is how they are graded; the sequence below is how they are done. Two rules drive it: run the free check (LocalStack) before the expensive one (AWS), and bootstrap the state bucket before `terraform init` needs it.
+
+| Phase | Steps | What | Rubric | Why here |
+|-------|-------|------|--------|----------|
+| 0 | 0.1–0.5 | Pre-flight | — | Part A must be gone; tools installed; starter kit still green |
+| 1 | 1–6 | Write the four modules, wire `dev` and `local`, pass fmt/validate | B1 | Everything else consumes this code |
+| 2 | 7–9 | `make local-validate` (LocalStack) | B5 | Free. Catches module bugs before you pay for them. SageMaker excluded |
+| 3 | 10–12 | `bootstrap-state.sh` | B3 | Creates the state bucket the backend needs *before* `terraform init` |
+| 4 | 13–14 | Variables and `terraform.tfvars` | B4 | Optional — every value is a default — but the rubric checks git |
+| 5 | 15–19 | `init` → `plan` → `apply` → screenshots → `verify-lab1.sh` → `destroy` | B2 | ~2.5 min apply on the reference account; budget 12. Verify **while the stack is up** — it cannot be re-run after destroy |
+| 6 | 20 | `check-secrets.sh` → commit → tag → push | — | The TA grades the tag |
+
+---
+
+## Phase 0 — Pre-flight (10 min)
+
+**0.1 Part A must be torn down.** Two Part A resources are unique keys and `terraform apply` hard-fails on them. Confirm all four are gone:
+
+```bash
+aws ec2 describe-vpcs --filters "Name=tag:Name,Values=northstar-dev-vpc" --query 'Vpcs[*].VpcId'     # []
+aws s3 ls | grep northstar-dev-data                                                                  # nothing
+aws iam get-role --role-name northstar-dev-MLEngineer 2>&1 | grep -c NoSuchEntity                    # 1
+aws sagemaker list-domains --query 'Domains[?DomainName==`northstar-dev-domain`]'                    # []
+```
+
+If any of these returns something, go to the teardown section of [[Lab_1a--Solution Notes (Manual Steps)]] first. Leave `AWSServiceRoleForAmazonSageMakerNotebooks` alone.
+
+**0.2 Tools.**
+
+```bash
+terraform version        # >= 1.5.0 (reference run: 1.16.1)
+aws --version            # aws-cli/2.x
+docker info >/dev/null && echo "docker ok"   # daemon must be running for B5
+awslocal --version       # pip install awscli-local  (or: pipx install awscli-local)
+```
+
+`awslocal` is the one students most often lack. If `pip install` puts it somewhere not on `PATH` (common with Homebrew Python), `pipx install awscli-local` fixes it.
+
+**0.3 Account and region.** Same check as Part A. Terraform reads the same credentials the CLI does.
+
+```bash
+aws sts get-caller-identity --query '[Account,Arn]' --output text
+aws configure get region     # us-east-1
+```
+
+If this fails, [[Fix Credentials Problem]]. With multiple profiles, `export AWS_PROFILE=cs401r` — Terraform honors it.
+
+**0.4 Service-linked role.** Same as Part A Step 0.4. Terraform cannot create this role for you; without it the Domain resource fails partway through `apply` and leaves 17 of 19 resources standing.
+
+```bash
+aws iam get-role --role-name AWSServiceRoleForAmazonSageMakerNotebooks \
+  --query 'Role.Arn' --output text 2>/dev/null || echo "MISSING — IAM → Roles → Create role → AWS service → SageMaker → SageMaker - Studio"
+```
+
+**0.5 Repo and starter kit.** Student is working in `cs401r-<netid>`, created from the template (see "Getting Your Repository" in the lab). Confirm the kit is green *before* touching it — rubric B1 gives 5 points for keeping it that way:
+
+```bash
+cd cs401r-<netid>
+git log --oneline | tail -1              # "Initial commit from cs401r-lab1-template"
+cd infrastructure/environments/dev
+terraform init -backend=false            # no backend.tf yet, so plain init also works
+terraform fmt -check -recursive ../..    # no output = pass
+terraform validate                       # "Success! The configuration is valid."
+cd -
+```
+
+`-backend=false` matters later: once `backend.tf` exists, plain `terraform init` tries to reach the state bucket. For validate-only runs, always pass `-backend=false`.
+
+---
+
+## Phase 1 — Write the Modules (Rubric B1: Module Structure and Code Quality, 15 pts)
+
+The skeleton ships every `variables.tf` complete and every `main.tf` as a comment block listing the resources owed. `outputs.tf` in every module and both environments is commented out. The work is: write the resources, uncomment the outputs, and uncomment the module calls in `environments/dev/main.tf`.
+
+Three rules the rubric enforces mechanically:
+
+1. **Only the designated resources in each module.** (5 pts) A NAT gateway in `vpc/`, a second bucket in `storage/`, or a second role in `iam/` all lose the row.
+2. **No name literals.** (5 pts) `grep -rn '"northstar-dev"' infrastructure/modules/` must return nothing. `verify-lab1.sh` is stricter — it greps `"northstar` — so build *every* name and ARN from `var.project` and `var.environment`.
+3. **`terraform fmt -check -recursive` silent, `terraform validate` exit 0.** (5 pts)
+
+Each module below is the complete `main.tf`. The mapping column ties every resource to the console step in [[Lab_1a--Solution Notes (Manual Steps)]] — that mapping is the point of doing Part A first, and it is a good TA question to ask a student who cannot explain their own code.
+
+### Step 1 — `modules/vpc/main.tf`
+
+| Resource | Part A console step |
+|----------|--------------------|
+| `aws_vpc` | A2 Step 1 (VPC + **Edit VPC settings** for DNS hostnames) |
+| `aws_subnet` | A2 Step 2 (+ **Edit subnet settings** for auto-assign IP) |
+| `aws_internet_gateway` | A2 Step 3 (create + attach — one resource here, `vpc_id` is the attach) |
+| `aws_route_table` | A2 Step 4 (the console reused the main table; Terraform creates an explicit one) |
+| `aws_route_table_association` | A2 Step 4, Subnet associations tab |
+| `aws_security_group` | A2 Step 5 |
+
+```hcl
+# ── modules/vpc ──────────────────────────────────────────────────────────────
+# Lab 1 network layer: one VPC, one public subnet in a single AZ, an Internet
+# Gateway, a public route table, and the security group the SageMaker Domain
+# attaches to. Nothing here is private yet; Lab 2 adds the private subnet and
+# NAT Gateway.
+#
+# Every name is built from var.project and var.environment. There are no
+# project-environment literals anywhere in this module.
+
+resource "aws_vpc" "this" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name = "${var.project}-${var.environment}-vpc"
+  }
+}
+
+resource "aws_subnet" "public" {
+  vpc_id                  = aws_vpc.this.id
+  cidr_block              = var.public_subnet_cidr
+  availability_zone       = var.availability_zone
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "${var.project}-${var.environment}-public-1"
+    Tier = "public"
+  }
+}
+
+resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
+
+  tags = {
+    Name = "${var.project}-${var.environment}-igw"
+  }
+}
+
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this.id
+  }
+
+  tags = {
+    Name = "${var.project}-${var.environment}-public-rt"
+  }
+}
+
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
+# Inbound is limited to the VPC CIDR: Studio has a public IP in Lab 1, but
+# nothing on the internet can open a connection to it. Outbound is open so
+# Studio can pull kernel images from ECR and reach S3.
+#
+# Descriptions are plain ASCII on purpose. EC2 rejects any non-ASCII
+# character in a security group description at apply time, and neither
+# terraform validate nor LocalStack will warn you first.
+
+resource "aws_security_group" "this" {
+  name        = "${var.project}-${var.environment}-sagemaker-sg"
+  description = "SageMaker Studio - inbound from VPC CIDR only, all outbound"
+  vpc_id      = aws_vpc.this.id
+
+  ingress {
+    description = "All traffic from inside the VPC"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "All outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project}-${var.environment}-sagemaker-sg"
+  }
+}
+```
+
+Things that bite here:
+
+- **`enable_dns_hostnames = true` is not the default.** Same trap as the console. Without it, Studio's presigned URL flow breaks intermittently.
+- **`Tier = "public"` tag.** `verify-lab1.sh` counts subnets tagged `Tier=private` and expects zero. The tag is not required for Lab 1, but Lab 2 depends on it; put it in now.
+- **Non-ASCII in `description`.** A student who copies a description from the lab guide with an em dash (—) gets `InvalidParameterValue` from EC2 at `apply`, after `validate` and LocalStack both passed. Hyphen only.
+- **`protocol = "-1"`** is "All traffic". `from_port`/`to_port` must be `0` with it.
+- The console's "main route table" from Part A becomes an explicit `aws_route_table` here. Terraform never manages the VPC's auto-created main table; that is expected and not a spec deviation.
+
+Uncomment all three outputs in `modules/vpc/outputs.tf` (`vpc_id`, `public_subnet_id`, `security_group_id`).
+
+### Step 2 — `modules/storage/main.tf`
+
+| Resource | Part A console step |
+|----------|--------------------|
+| `aws_s3_bucket` | A3 Step 14, bucket name |
+| `aws_s3_bucket_public_access_block` | A3 Step 14, Block Public Access (all four) |
+| `aws_s3_bucket_versioning` | A3 Step 14, Bucket Versioning: Enable |
+| `aws_s3_bucket_server_side_encryption_configuration` | A3 Step 14, SSE-S3 |
+| `aws_s3_object` ×4 | A3 Step 15, Create folder ×4 |
+
+```hcl
+# ── modules/storage ──────────────────────────────────────────────────────────
+# One bucket, four prefixes. The bucket name carries the account ID because S3
+# names are global: every student would otherwise collide on
+# northstar-dev-data. The account ID is read from the caller rather than
+# passed in, so the module signature stays project + environment and the
+# LocalStack environment (account 000000000000) needs no special casing.
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  bucket_name = "${var.project}-${var.environment}-data-${data.aws_caller_identity.current.account_id}"
+}
+
+resource "aws_s3_bucket" "data" {
+  bucket = local.bucket_name
+
+  # Versioning is on, so a plain destroy would fail with BucketNotEmpty once
+  # anything has been written. Lab data is synthetic and regenerable, and the
+  # course requires a full teardown after every lab, so the bucket opts in to
+  # force_destroy. Never do this on a bucket holding real customer data.
+  force_destroy = var.force_destroy
+
+  tags = {
+    Name = local.bucket_name
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_versioning" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "data" {
+  bucket = aws_s3_bucket.data.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# S3 has no directories. A zero-byte object whose key ends in "/" is what
+# makes a prefix exist before anything is written under it, and it is what
+# the console renders as a folder.
+resource "aws_s3_object" "prefix" {
+  for_each = toset(var.prefixes)
+
+  bucket  = aws_s3_bucket.data.id
+  key     = each.value
+  content = ""
+}
+```
+
+The skeleton's `variables.tf` does not declare `force_destroy`. Add it:
+
+```hcl
+variable "force_destroy" {
+  description = "Allow terraform destroy to delete the bucket while it still holds object versions. Safe only because lab data is synthetic; never enable on real data."
+  type        = bool
+  default     = true
+}
+```
+
+Things that bite here:
+
+- **The account ID comes from `data.aws_caller_identity`, not a variable.** This is the design choice that lets `environments/local` reuse the module unchanged (LocalStack answers `000000000000`). A student who adds an `account_id` variable is not wrong, but must then thread it through both environments.
+- **`for_each = toset(var.prefixes)`** gives four resources with addresses like `aws_s3_object.prefix["raw/"]`. Four copy-pasted `aws_s3_object` blocks also satisfy "×4" and are fine for grading.
+- **`force_destroy = true`.** Without it, `terraform destroy` fails with `BucketNotEmpty` the moment the bucket holds a single versioned object — and the four prefix objects are versioned objects. Students who omit it discover this at destroy time and end up emptying the bucket by hand. Still passes the rubric if they get there; costs them 20 minutes.
+- Do not add `aws_s3_bucket_lifecycle_configuration`. That is Lab 2, and it breaks the "only designated resources" row.
+
+Uncomment `bucket_name` and `bucket_arn` in `outputs.tf`.
+
+### Step 3 — `modules/iam/main.tf`
+
+| Resource | Part A console step |
+|----------|--------------------|
+| `aws_iam_role` | A3 Step 6a–6c (trust = `sagemaker.amazonaws.com`) |
+| `aws_iam_policy` | A3 Step 6d — but as a **customer-managed** policy, not inline |
+| `aws_iam_role_policy_attachment` | the attach that the console does implicitly |
+
+```hcl
+# ── modules/iam ──────────────────────────────────────────────────────────────
+# Lab 1 ships one role: MLEngineer, the execution role SageMaker Studio and
+# every training job assume. It is scoped to what the Lab 1 spec lists and
+# nothing else:
+#
+#   SageMaker      training jobs, models, endpoints, model registry, MLflow App
+#   S3             read/write artifacts/ and features/ only
+#   CloudWatch     write logs under /aws/sagemaker/
+#   ECR            pull training container images
+#
+# raw/ and processed/ are denied by omission. The verify script simulates
+# s3:PutObject on raw/ and expects implicitDeny; a wildcard S3 statement here
+# would pass Lab 1 and cost points in Lab 2.
+#
+# The bucket ARN is derived the same way modules/storage builds the bucket
+# name, so this module needs only project + environment.
+
+data "aws_caller_identity" "current" {}
+
+locals {
+  bucket_arn = "arn:aws:s3:::${var.project}-${var.environment}-data-${data.aws_caller_identity.current.account_id}"
+}
+
+resource "aws_iam_role" "ml_engineer" {
+  name = "${var.project}-${var.environment}-MLEngineer"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "sagemaker.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = {
+    Name = "${var.project}-${var.environment}-MLEngineer"
+  }
+}
+
+resource "aws_iam_policy" "ml_engineer" {
+  name        = "${var.project}-${var.environment}-MLEngineerPolicy"
+  description = "MLEngineer least privilege: SageMaker training and serving, artifacts/ and features/ prefixes, logs, ECR pull"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "SageMakerTrainingAndServing"
+        Effect = "Allow"
+        Action = [
+          "sagemaker:CreateTrainingJob",
+          "sagemaker:DescribeTrainingJob",
+          "sagemaker:StopTrainingJob",
+          "sagemaker:ListTrainingJobs",
+          "sagemaker:CreateModel",
+          "sagemaker:DescribeModel",
+          "sagemaker:DeleteModel",
+          "sagemaker:CreateEndpointConfig",
+          "sagemaker:DescribeEndpointConfig",
+          "sagemaker:DeleteEndpointConfig",
+          "sagemaker:CreateEndpoint",
+          "sagemaker:DescribeEndpoint",
+          "sagemaker:UpdateEndpoint",
+          "sagemaker:DeleteEndpoint",
+          "sagemaker:ListEndpoints",
+          "sagemaker:InvokeEndpoint",
+          "sagemaker:AddTags",
+          "sagemaker:ListTags"
+        ]
+        Resource = "*"
+      },
+      {
+        # Studio itself runs as this role. Its UI has to describe the Domain
+        # and user profile, list and describe apps and spaces, and create or
+        # delete the JupyterLab app when you open Studio and shut it down, and
+        # mint the presigned URL that launches an app in a new tab.
+        # Without these the Studio page shows "Permissions not configured
+        # correctly" and the Lab 1a "open Studio, then shut it down" step
+        # cannot be done. Scoped to Studio resource types only.
+        Sid    = "StudioSelfService"
+        Effect = "Allow"
+        Action = [
+          "sagemaker:DescribeDomain",
+          "sagemaker:ListDomains",
+          "sagemaker:DescribeUserProfile",
+          "sagemaker:ListUserProfiles",
+          "sagemaker:DescribeSpace",
+          "sagemaker:ListSpaces",
+          "sagemaker:CreateSpace",
+          "sagemaker:UpdateSpace",
+          "sagemaker:DeleteSpace",
+          "sagemaker:DescribeApp",
+          "sagemaker:ListApps",
+          "sagemaker:CreateApp",
+          "sagemaker:DeleteApp",
+          "sagemaker:CreatePresignedDomainUrl"
+        ]
+        Resource = [
+          "arn:aws:sagemaker:*:*:domain/*",
+          "arn:aws:sagemaker:*:*:user-profile/*",
+          "arn:aws:sagemaker:*:*:space/*",
+          "arn:aws:sagemaker:*:*:app/*"
+        ]
+      },
+      {
+        # Experiment tracking is the serverless MLflow App (no charge). The
+        # MLflow Tracking Server (CreateMlflowTrackingServer, $0.60/hr) is
+        # deliberately absent from this list.
+        Sid    = "SageMakerMlflowApp"
+        Effect = "Allow"
+        Action = [
+          "sagemaker:CreateMlflowApp",
+          "sagemaker:DescribeMlflowApp",
+          "sagemaker:ListMlflowApps",
+          "sagemaker:CreatePresignedMlflowAppUrl"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "SageMakerModelRegistry"
+        Effect = "Allow"
+        Action = [
+          "sagemaker:CreateModelPackageGroup",
+          "sagemaker:DescribeModelPackageGroup",
+          "sagemaker:ListModelPackageGroups",
+          "sagemaker:CreateModelPackage",
+          "sagemaker:DescribeModelPackage",
+          "sagemaker:ListModelPackages",
+          "sagemaker:UpdateModelPackage"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "S3ArtifactsAndFeatures"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "${local.bucket_arn}/artifacts/*",
+          "${local.bucket_arn}/features/*"
+        ]
+      },
+      {
+        Sid    = "S3BucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = local.bucket_arn
+      },
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "arn:aws:logs:*:*:log-group:/aws/sagemaker/*"
+      },
+      {
+        Sid    = "ECRPull"
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ml_engineer" {
+  role       = aws_iam_role.ml_engineer.name
+  policy_arn = aws_iam_policy.ml_engineer.arn
+}
+```
+
+> **This policy is a superset of the Part A JSON, and that is fine.** The lab guide's inline JSON is the *minimum*. The reference adds `CreateModel`, `InvokeEndpoint`, `ListTrainingJobs`, `UpdateEndpoint`, the ModelPackageGroup actions, `logs:DescribeLogStreams`, and `ecr:BatchCheckLayerAvailability` because Labs 3–5 need them, and every one is still scoped to the spec's four areas. What is graded is (a) trust = `sagemaker.amazonaws.com`, (b) `CreateTrainingJob` allowed, (c) `PutObject` on `raw/` denied, (d) `StudioSelfService` present so Studio opens. A student who pastes the Part A JSON verbatim through `jsonencode` gets full marks. A student who adds `"s3:*"` on `${local.bucket_arn}/*` fails check (c) — that is the one to look for.
+
+> **Managed policy vs inline.** Part A says "inline policy" because that is the console's path of least resistance. Part B's rubric specifies `aws_iam_policy` + `aws_iam_role_policy_attachment`, which is a customer-managed policy. Do not deduct on either side for the mismatch; it is deliberate. (`aws_iam_role_policy` — the inline resource — would fail the B1 "correct resource placement" row on a strict read. Accept it with a comment to the student; it is not what the rubric names.)
+
+> **Why `${local.bucket_arn}` and not `arn:aws:s3:::northstar-dev-data-*`.** The Part A JSON uses a wildcard because the console has no variables. Here the exact ARN is available. Either passes the simulation; the literal form would trip the `"northstar` grep in `verify-lab1.sh`.
+
+Uncomment `ml_engineer_role_arn` in `outputs.tf`.
+
+### Step 4 — `modules/sagemaker/main.tf`
+
+| Resource | Part A console step |
+|----------|--------------------|
+| `aws_sagemaker_domain` | A4 Steps 7–13 (the whole wizard) |
+| `aws_sagemaker_user_profile` | A4 Step 16 |
+
+```hcl
+# ── modules/sagemaker ────────────────────────────────────────────────────────
+# The Studio Domain and one user profile. In Lab 1 the Domain sits in the
+# public subnet with PublicInternetOnly access; Lab 2 moves it to the private
+# subnet behind a NAT Gateway, which forces a replacement.
+#
+# This is the slowest resource in the stack (roughly 8-12 minutes to create,
+# similar to delete). A brand-new account also needs the Studio service-linked
+# role to exist first; see the New Account Bootstrap note in the lab guide.
+
+resource "aws_sagemaker_domain" "this" {
+  domain_name             = "${var.project}-${var.environment}-domain"
+  auth_mode               = "IAM"
+  vpc_id                  = var.vpc_id
+  subnet_ids              = var.subnet_ids
+  app_network_access_type = var.app_network_access_type
+
+  default_user_settings {
+    execution_role  = var.execution_role_arn
+    security_groups = var.security_group_ids
+
+    sharing_settings {
+      notebook_output_option = "Disabled"
+    }
+
+    jupyter_server_app_settings {
+      default_resource_spec {
+        instance_type = "system"
+      }
+    }
+
+    kernel_gateway_app_settings {
+      default_resource_spec {
+        instance_type = var.instance_type
+      }
+    }
+
+    # AWS returns this block on every read even when unset; declaring it
+    # empty keeps `terraform plan` at "No changes" after the first apply.
+    studio_web_portal_settings {}
+  }
+
+  # The Domain creates an EFS filesystem for user home directories that
+  # Terraform never sees. With the default Retain policy that filesystem, its
+  # mount target, and two NFS security groups survive DeleteDomain, the mount
+  # target pins the subnet, and `terraform destroy` hangs for 10+ minutes
+  # before failing. Delete tells SageMaker to remove the filesystem with the
+  # Domain. Lab data never lives in Studio home directories, so nothing of
+  # value is lost.
+  
+  retention_policy {
+    home_efs_file_system = "Delete"
+  }
+
+  tags = {
+    Name = "${var.project}-${var.environment}-domain"
+  }
+}
+
+resource "aws_sagemaker_user_profile" "ml_engineer" {
+  domain_id         = aws_sagemaker_domain.this.id
+  user_profile_name = var.user_profile_name
+
+  user_settings {
+    execution_role  = var.execution_role_arn
+    security_groups = var.security_group_ids
+  }
+
+  tags = {
+    Name = "${var.project}-${var.environment}-${var.user_profile_name}"
+  }
+}
+```
+
+The skeleton's `variables.tf` lacks two variables that this uses. Add them (Lab 2 flips the first one to `VpcOnly`):
+
+```hcl
+variable "app_network_access_type" {
+  description = "PublicInternetOnly (Lab 1, public subnet) or VpcOnly (Lab 2+, private subnet with NAT egress). Changing this replaces the Domain."
+  type        = string
+  default     = "PublicInternetOnly"
+
+  validation {
+    condition     = contains(["PublicInternetOnly", "VpcOnly"], var.app_network_access_type)
+    error_message = "app_network_access_type must be PublicInternetOnly or VpcOnly."
+  }
+}
+
+variable "user_profile_name" {
+  description = "Name of the single Studio user profile"
+  type        = string
+  default     = "MLEngineer"
+}
+```
+
+Things that bite here — three of them are the lab's own "found by running it" fixes:
+
+- **`retention_policy { home_efs_file_system = "Delete" }`.** Not optional. The lab guide calls it out in bold. Without it the reference destroy went from 69 s to a 10-minute hang on `aws_subnet` / `aws_security_group` and a leftover EFS filesystem billing at $0.30/GB-month. This is the single most expensive omission in Part B; check for it first when a student reports "destroy hangs."
+- **`studio_web_portal_settings {}`.** Without the empty block, the second `terraform plan` after apply shows a perpetual diff on the Domain. Harmless, but "No changes" is the idempotence check a TA should be able to run, and it confuses students.
+- **`jupyter_server_app_settings … instance_type = "system"`.** The JupyterServer app does not run on an `ml.*` instance; `system` is the only valid value. Students who put `var.instance_type` there get a validation error from the API at apply.
+- **Hardcoded `"Disabled"`, `"IAM"`, `"system"`.** These are API enum values, not names. The literal grep only looks for `"northstar`; enums are fine.
+- **`app_network_access_type = "PublicInternetOnly"`** is what "Public internet access" in the console wizard (A4 Step 11) sets. `VpcOnly` here in Lab 1 would fail — there is no NAT or endpoints for Studio to reach ECR and S3.
+
+Uncomment `domain_id` in `outputs.tf`; add `domain_url` and `user_profile_name` (the reference does; only `domain_id` is required by the verify script).
+
+### Step 5 — Wire `environments/dev` and `environments/local`
+
+`environments/dev/main.tf`: uncomment all four module blocks exactly as shipped. `environments/dev/outputs.tf`: uncomment all five (`verify-lab1.sh` reads every one with `terraform output -raw` and dies on the first missing one). The reference adds two more that Lab 2 and humans want:
+
+```hcl
+output "security_group_id" {
+  description = "ID of the SageMaker security group"
+  value       = module.vpc.security_group_id
+}
+
+output "sagemaker_domain_url" {
+  description = "Studio URL"
+  value       = module.sagemaker.domain_url
+}
+```
+
+`environments/local/main.tf` ships **live** (not commented) — it was calling empty modules, which validate fine. Nothing to change there. `environments/local/outputs.tf`: uncomment the three, add `public_subnet_id` to mirror `dev`.
+
+Do not touch `versions.tf` in either environment. The `local` one carries the LocalStack endpoint block and the fake `test`/`test` credentials that stop the provider from reading a real profile.
+
+### Step 6 — Code-quality gates (5 pts)
+
+Run from the repo root. All three must be clean before Phase 2 (LocalStack):
+
+```bash
+terraform fmt -check -recursive infrastructure/      # silent = pass; `terraform fmt -recursive infrastructure/` to fix
+cd infrastructure/environments/dev   && terraform init -backend=false >/dev/null && terraform validate && cd -
+cd infrastructure/environments/local && terraform init -backend=false >/dev/null && terraform validate && cd -
+
+# Rubric grep (5 pts) and the stricter verify-script grep
+grep -rn '"northstar-dev"' infrastructure/modules/                                   # nothing
+grep -rn '"northstar' infrastructure/modules/ --include='*.tf' | grep -v 'var\.' | grep -v '#'   # nothing
+
+# Every variable has a description
+grep -L 'description' infrastructure/modules/*/variables.tf infrastructure/environments/*/variables.tf   # nothing
+```
+
+`terraform fmt` is the one students skip. It rewrites alignment (`=` columns) and the check fails on a single misaligned line. Tell them to run `terraform fmt -recursive` as a pre-commit habit.
+
+---
+
+## Phase 2 — LocalStack Validation (Rubric B5, 3 pts)
+
+Run this **before** touching AWS. Free, fast, and it proves the `vpc`, `storage`, and `iam` modules are sound before an apply that costs money. SageMaker is not in LocalStack Community, so `environments/local` omits it — the sagemaker module gets its first real test in Phase 5 (apply).
+
+### Step 7 — Run it
+```bash
+docker info >/dev/null 2>&1 || echo "Start Docker Desktop first"
+make local-validate
+```
+
+What it does (all in the shipped `Makefile`): `docker compose up -d --wait` → `terraform init` + `apply -auto-approve` in `environments/local` → five `awslocal` queries → `tee docs/lab1b-localstack-output.txt`. About 60–90 s on the reference machine, most of it LocalStack's first pull of the `localstack/localstack:4` image.
+
+### Step 8 — Read the output
+
+The rubric wants three things in `docs/lab1b-localstack-output.txt`:
+
+```
+== awslocal s3 ls s3://northstar-local-data-000000000000/ --recursive ==
+2026-09-14 15:09:40          0 artifacts/
+2026-09-14 15:09:40          0 features/
+2026-09-14 15:09:40          0 processed/
+2026-09-14 15:09:40          0 raw/
+
+== awslocal iam list-roles (northstar*) ==
+[
+    "northstar-local-MLEngineer"
+]
+
+== awslocal ec2 describe-vpcs ==
+[
+    { "Id": "vpc-...", "CIDR": "172.31.0.0/16" },     <- LocalStack's emulated default VPC, ignore
+    { "Id": "vpc-...", "CIDR": "10.0.0.0/16" }        <- the student's
+]
+
+== awslocal ec2 describe-subnets ==
+    { "Id": "subnet-...", "AZ": "us-east-1a", "CIDR": "10.0.100.0/24" }   <- the student's, among six 172.31.x.0/20
+```
+
+Names are `northstar-local-*`, not `northstar-dev-*`, because `environments/local/variables.tf` pins `environment = "local"`. That is correct; it is also a free demonstration that the modules are parameterized. The `sts get-caller-identity` block prints `AKIAIOSFODNN7EXAMPLE` — AWS's documented placeholder, which is why `check-secrets.sh` whitelists it.
+
+```bash
+# What the rubric checks
+grep -c '10.0.0.0/16'               docs/lab1b-localstack-output.txt   # >= 1
+grep -c '10.0.100.0/24'             docs/lab1b-localstack-output.txt   # >= 1
+grep -c 'northstar-local-MLEngineer' docs/lab1b-localstack-output.txt  # >= 1
+grep -c 'artifacts/'                docs/lab1b-localstack-output.txt   # >= 1
+```
+
+### Step 9 — Clean up
+
+`make local-clean` stops the container and deletes local state. Not graded, but `environments/local/terraform.tfstate` is gitignored only because `.gitignore` says `*.tfstate`; a student who edits that line commits state.
+
+> LocalStack Community does **not** enforce IAM. A wildcard S3 statement passes here and fails `verify-lab1.sh` against AWS. Read the local README (`infrastructure/environments/local/README.md`) with the student if they think B5 passing means the policy is right.
+
+---
+
+## Phase 3 — Bootstrap Remote State (Rubric B3, 8 pts)
+
+A backend cannot bootstrap the bucket that stores its own state, so this runs before `terraform init` in `dev`.
+
+### Step 10 — Bootstrap
+```bash
+bash scripts/bootstrap-state.sh          # from the repo root
+```
+
+First run on the reference account:
+
+```
+==> Bootstrap: Terraform remote state
+    Account ID : 711457211658
+    State bucket: northstar-tfstate-711457211658
+    Lock table : northstar-tfstate-lock
+
+[CREATE] S3 bucket: northstar-tfstate-711457211658
+[SET] Versioning on state bucket
+[SET] Block public access on state bucket
+[SET] Server-side encryption on state bucket
+[CREATE] DynamoDB lock table: northstar-tfstate-lock
+[WAIT] Waiting for table to become active...
+[COPY] infrastructure/environments/dev/backend.tf.example -> infrastructure/environments/dev/backend.tf
+[PATCH] Updating infrastructure/environments/dev/backend.tf with account ID
+==> Bootstrap complete.
+```
+
+The script copies `backend.tf.example` to `backend.tf` and replaces `YOUR_ACCOUNT_ID`. **`backend.tf` is committed** — it is in the reference repo at `lab1-submit`. An account ID is not a secret; `.gitignore` does not exclude it; and the TA's B3 check greps `backend.tf` for `dynamodb_table`.
+
+### Step 11 — Idempotency (2 pts)
+
+Run it again. Every line must be `[SKIP]` or `[SET]`, exit 0:
+
+```bash
+bash scripts/bootstrap-state.sh; echo "exit=$?"
+# [SKIP] S3 bucket already exists ... [SKIP] DynamoDB table already exists ... [SKIP] backend.tf already patched   exit=0
+```
+
+(`[SET]` lines re-run every time; `put-bucket-versioning` etc. are idempotent PUTs. That is by design.)
+
+### Step 12 — Verify (4 + 2 pts)
+
+These are the rubric's exact commands:
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+STATE_BUCKET="northstar-tfstate-${ACCOUNT_ID}"
+
+aws s3api get-bucket-versioning   --bucket "${STATE_BUCKET}" --query Status                    # "Enabled"
+aws s3api get-bucket-encryption   --bucket "${STATE_BUCKET}" \
+  --query 'ServerSideEncryptionConfiguration.Rules[0].ApplyServerSideEncryptionByDefault.SSEAlgorithm'   # "AES256"
+aws s3api get-public-access-block --bucket "${STATE_BUCKET}" --query PublicAccessBlockConfiguration   # all four true
+aws dynamodb describe-table --table-name northstar-tfstate-lock \
+  --query 'Table.{Status:TableStatus,Key:KeySchema[0].AttributeName}'                            # ACTIVE, LockID
+```
+
+> **Expect a deprecation warning.** Terraform ≥ 1.11 prints `Warning: Deprecated Parameter — The parameter "dynamodb_table" is deprecated. Use parameter "use_lockfile" instead.` on every `init`, `plan`, `apply`, and `destroy`. It appears at the top of the reference `lab1b-apply-output.txt`. It is a warning, not an error, and the rubric grades the DynamoDB table (B3, 2 pts), so keep `dynamodb_table`. A student who *also* adds `use_lockfile = true` is doing the modern thing and should not lose points; a student who *replaces* `dynamodb_table` with it loses the 2-point lock-table row and the "S3 backend + DynamoDB lock" check in `verify-lab1.sh`. Consider flipping the lab to `use_lockfile` in a future term; not this one.
+
+> **The state bucket and lock table survive `terraform destroy`.** They are not in Terraform's state — the script made them. That is intended: state must outlive the stack, and Lab 2 reuses them. Cost is effectively zero (one 10 KB object, a PAY_PER_REQUEST table). Students do not delete them until the end of the course.
+
+---
+
+## Phase 4 — Parameterization (Rubric B4, 4 pts)
+
+### Step 13 — Variables (2 pts)
+
+All seven are already in the skeleton's `environments/dev/variables.tf` with descriptions and defaults matching the spec. Nothing to write; just do not delete any. Check:
+
+```bash
+for v in project environment aws_region vpc_cidr public_subnet_cidr availability_zone sagemaker_instance_type; do
+  grep -q "variable \"${v}\"" infrastructure/environments/dev/variables.tf && echo "ok  ${v}" || echo "MISSING ${v}"
+done
+```
+
+### Step 14 — tfvars hygiene (2 pts)
+
+`terraform.tfvars.example` ships in the kit and is committed. Creating a real `terraform.tfvars` is optional (every value is a default), but if the student makes one, `.gitignore` (`*.tfvars`) keeps it out:
+
+```bash
+cd infrastructure/environments/dev
+cp terraform.tfvars.example terraform.tfvars      # optional
+cd -
+git ls-files '*.tfvars.example'                    # infrastructure/environments/dev/terraform.tfvars.example
+git ls-files '*.tfvars'                            # nothing — if this prints a path, the .gitignore was edited
+```
+
+---
+
+## Phase 5 — Apply, Verify, Destroy (Rubric B2, 15 pts)
+
+### Step 15 — Init and plan
+```bash
+cd infrastructure/environments/dev
+terraform init
+```
+
+Expect `Successfully configured the backend "s3"!` followed by provider install. If the student ran a plain `init` in Step 0.5 before `backend.tf` existed, this `init` asks whether to migrate local state to S3 — answer `yes` (there is nothing in it). `terraform init -migrate-state` does the same non-interactively.
+
+```bash
+terraform plan
+```
+
+Expect exactly **`Plan: 19 to add, 0 to change, 0 to destroy.`** The count is a useful TA sanity check: 6 (vpc) + 8 (storage: bucket, 3 configs, 4 objects) + 3 (iam) + 2 (sagemaker) = 19. Two `data.aws_caller_identity` reads are not counted. A plan of 18 usually means a missing `aws_route_table_association`; 20+ means something extra snuck into a module.
+
+### Step 16 — Apply, captured (8 pts)
+```bash
+terraform apply 2>&1 | tee ../../../docs/lab1b-apply-output.txt
+```
+
+Type `yes` at the prompt. Terraform disables color when stdout is a pipe, so the file is plain text. Observed on the reference account:
+
+| Resource | Time |
+|----------|------|
+| IAM role, policy, attachment | ~1 s |
+| S3 bucket + 7 dependents | ~2 s |
+| VPC | 12 s |
+| Subnet | 12 s |
+| IGW, route table, association, SG | 1–4 s |
+| **SageMaker Domain** | **1 m 56 s** |
+| User profile | 4 s |
+| **Total** | **2 m 29 s** |
+
+The lab guide budgets 8–12 minutes for the Domain. Two minutes was the reference account; a brand-new account is slower. If the Domain is still creating at 15 minutes, it is almost certainly the service-linked role (Step 0.4) — cancel with Ctrl-C **once** (Terraform finishes the current API call and writes state), create the role, `terraform apply` again.
+
+The file must end with:
+
+```
+Apply complete! Resources: 19 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+ml_engineer_role_arn = "arn:aws:iam::<account>:role/northstar-dev-MLEngineer"
+public_subnet_id = "subnet-..."
+s3_bucket_name = "northstar-dev-data-<account>"
+sagemaker_domain_id = "d-..."
+sagemaker_domain_url = "https://d-....studio.us-east-1.sagemaker.aws"
+security_group_id = "sg-..."
+vpc_id = "vpc-..."
+```
+
+```bash
+# Rubric check for the 8-point row
+tail -20 ../../../docs/lab1b-apply-output.txt | grep 'Apply complete! Resources: 19 added, 0 changed, 0 destroyed'
+
+# Idempotence — a second plan must be empty. Not graded; the best 10-second check a TA has.
+terraform plan -detailed-exitcode >/dev/null; echo "exit=$?"     # 0 = No changes; 2 = drift (see Common Failures)
+```
+
+> **Re-running apply after a partial failure is the normal recovery.** Terraform resumes from state. A student who deletes everything in the console after a failed apply and re-applies gets state drift (`already exists` errors on the IAM role and bucket). If that happens: `terraform destroy` first (it removes what state knows about), then fix, then apply.
+
+### Step 17 — Console evidence (4 pts) and Studio open/shutdown
+Same four screenshots as Part A, now showing Terraform-built resources. The IDs will differ from Part A; the names and settings must match.
+
+| Screenshot | Where | Must show |
+|-----------|-------|-----------|
+| Domain | SageMaker AI → Domains → `northstar-dev-domain` → Domain settings | **InService**, VPC/subnet/SG IDs matching `terraform output` |
+| S3 | S3 → `northstar-dev-data-<account>` → Objects | four prefixes; Properties: Versioning Enabled, SSE-S3 |
+| VPC / subnet | VPC → Subnets, filter `northstar-dev` | `northstar-dev-public-1`, `10.0.100.0/24`, `us-east-1a` |
+| IAM role | IAM → Roles → `northstar-dev-MLEngineer` → Permissions | `northstar-dev-MLEngineerPolicy` attached (customer managed — not inline this time) |
+
+Then open Studio once and shut it down, exactly as A4 Steps 17–18 in [[Lab_1a--Solution Notes (Manual Steps)]]. `terraform output -raw sagemaker_domain_url` is the Studio URL, but Launch → Studio from the user-profile page is the reliable path. **This is where the `StudioSelfService` statement is tested.** A blank Studio page reading "Permissions not configured correctly" means the IAM module is missing it.
+
+The shutdown screenshot (`docs/lab1-studio-shutdown.png`) can come from this session or the Part A session — either is accepted. And the running-app check matters twice here: a running JupyterLab app blocks `aws_sagemaker_user_profile` deletion, so `terraform destroy` fails until it is stopped.
+
+```bash
+DOMAIN_ID=$(terraform output -raw sagemaker_domain_id)
+aws sagemaker list-apps --domain-id-equals "${DOMAIN_ID}" \
+  --query 'Apps[?Status!=`Deleted`].{Type:AppType,Space:SpaceName,Status:Status}' --output table   # empty before destroy
+```
+
+### Step 18 — Verify while the stack is up
+```bash
+cd ../../..                                                   # repo root — the script cds itself
+bash scripts/verify-lab1.sh 2>&1 | tee docs/lab1-verify-output.txt
+```
+
+Expected: **`Results: 28 passed  0 failed`**. The script reads all five outputs from remote state, then hits AWS. Two rows deserve a second look on any submission:
+
+- `A3 IAM sim: MLEngineer DENIED write to raw/` — the least-privilege proof. If a student's file shows this failing, the S3 statement is too broad; grade the A3 role row down.
+- `B2 apply output shows Apply complete` — this is why apply is captured with `tee` *before* verify runs. A student who runs verify first sees this fail, panics, and re-applies. Order matters.
+
+Anything failing: fix, re-run, re-tee. Only the committed file is graded, so it should be the clean run.
+
+> `verify-lab1.sh` cannot check for its own output, and it cannot be re-run after destroy. **It is the last thing before destroy.** The TA guide is explicit that TAs do not run it — they read the committed file.
+
+### Step 19 — Destroy (3 pts)
+```bash
+cd infrastructure/environments/dev
+terraform destroy 2>&1 | tee ../../../docs/lab1b-destroy-output.txt     # the tee is optional; the reference repo commits it
+```
+
+`yes` at the prompt. Reference account: **`Destroy complete! Resources: 19 destroyed.`** in **69 s**, of which the Domain was 54 s. Everything else completes in 1–4 s. The order Terraform picks (user profile → domain → role, subnet, SG → VPC) is the same dependency order the console forced in Part A teardown; students who did Part A recognize it.
+
+```bash
+terraform show                # prints exactly "No state."  ← the rubric's pass criterion (verified on 1.16.1)
+terraform state list          # after a destroy with remote state: no output. (In a never-applied directory it errors "No state file was found!" — that is not the same thing.)
+```
+
+**Orphan sweep.** The three things Terraform does not own and that `retention_policy = Delete` is supposed to handle:
+
+```bash
+aws efs describe-file-systems --query 'FileSystems[*].{Id:FileSystemId,Name:Name,Tags:Tags[?Key==`ManagedByAmazonSageMakerResource`].Value|[0]}' --output table   # no SageMaker rows
+aws ec2 describe-security-groups --filters "Name=group-name,Values=security-group-for-*-nfs-*" --query 'SecurityGroups[*].GroupName'                                # []
+aws ec2 describe-vpcs --filters "Name=tag:Name,Values=northstar-dev-vpc" --query 'Vpcs[*].VpcId'                                                                   # []
+```
+
+If EFS or the `security-group-for-inbound-nfs-d-…` / `-outbound-nfs-d-…` groups are present, the student's Domain lacked `retention_policy`; see Common Failures for the manual cleanup.
+
+---
+
+## Phase 6 — Commit, Tag, Push
+
+### Step 20 — Secrets check, commit, tag, push
+
+```bash
+cd <repo root>
+bash scripts/check-secrets.sh                  # CLEAN: no credentials found in git history.
+git status                                     # terraform.tfvars, .terraform/, *.tfstate must NOT appear as untracked-and-addable
+git add infrastructure/ docs/ scripts/ README.md
+git commit -m "Lab 1: Terraform modules, apply/verify/destroy evidence"
+git tag lab1-submit
+git push origin main --tags
+```
+
+Six required files at the tag (the lab's submission table), plus the diagram from A1:
+
+```bash
+git ls-tree -r --name-only lab1-submit -- docs/ | sort
+# docs/lab1-adr.md
+# docs/lab1-architecture-diagram.png  (+ -source.drawio)
+# docs/lab1-cost-estimate.md
+# docs/lab1-studio-shutdown.png
+# docs/lab1-verify-output.txt
+# docs/lab1b-apply-output.txt
+# docs/lab1b-localstack-output.txt
+```
+
+`infrastructure/environments/dev/.terraform.lock.hcl` should be committed too (the reference does). It pins the provider version, which is what makes "it applied for me" reproducible for the TA. `.gitignore` excludes `.terraform/` (the directory) but not the lock file — that is correct.
+
+---
+
+## Evidence Checklist (Part B rows)
+
+| Rubric row | Pts | Evidence | Pass criterion |
+|-----------|-----|----------|----------------|
+| B1 modules present, correct placement | 5 | `infrastructure/modules/{vpc,storage,iam,sagemaker}/main.tf` | Only designated resources; plan count 19 |
+| B1 no literals | 5 | `grep -rn '"northstar-dev"' infrastructure/modules/` | nothing |
+| B1 fmt + validate | 5 | run them at the tag | silent / exit 0 |
+| B2 apply | 8 | `docs/lab1b-apply-output.txt` | ends `Apply complete! Resources: 19 added, 0 changed, 0 destroyed` |
+| B2 console post-apply | 4 | 4 screenshots in `docs/` | Domain InService, bucket, subnet, role |
+| B2 destroy | 3 | `terraform show` empty; optional `docs/lab1b-destroy-output.txt` | `Destroy complete! Resources: 19 destroyed` |
+| B3 state bucket | 4 | three `s3api get-*` commands on `northstar-tfstate-<account>` | versioning, AES256, all-blocked |
+| B3 lock table | 2 | `dynamodb describe-table` | ACTIVE, `LockID` hash key |
+| B3 idempotent | 2 | second run of `bootstrap-state.sh` | exit 0, `[SKIP]` lines |
+| B4 variables | 2 | `environments/dev/variables.tf` | 7 vars, descriptions |
+| B4 tfvars hygiene | 2 | `git ls-files` | `.example` tracked, real one not |
+| B5 LocalStack | 3 | `docs/lab1b-localstack-output.txt` | `10.0.0.0/16`, `10.0.100.0/24`, `northstar-local-MLEngineer`, four prefixes |
+
+`docs/lab1-verify-output.txt` carries no points of its own; its 28 rows are the evidence for the A2/A3/A4 and B1/B3/B4/B5 rows above.
+
+---
+
+## Common Failures and Fixes
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| `EntityAlreadyExists: Role with name northstar-dev-MLEngineer` / `BucketAlreadyOwnedByYou` on apply | Part A not torn down | Step 0.1; Part A teardown in [[Lab_1a--Solution Notes (Manual Steps)]] |
+| `terraform init`: `S3 bucket "northstar-tfstate-YOUR_ACCOUNT_ID" does not exist` or `NoSuchBucket` | `bootstrap-state.sh` not run, or run from the wrong directory (it patches a relative path) | Run it from the repo root; confirm `backend.tf` has a 12-digit ID |
+| `terraform init`: "Backend configuration changed… migrate?" | Local state from an earlier `init` | Answer `yes`, or `terraform init -migrate-state` |
+| Domain `Creating…` > 15 min, then `ValidationException … service-linked role` | Missing `AWSServiceRoleForAmazonSageMakerNotebooks` | Step 0.4; then `terraform apply` again — state resumes |
+| `InvalidParameterValue: … description … ` on the security group | Non-ASCII character (em dash) in `description` | ASCII only. `validate` and LocalStack do not catch this |
+| `ValidationException` on `jupyter_server_app_settings` instance type | `var.instance_type` used where `"system"` is required | Step 4 |
+| `terraform destroy` hangs 10 min on `aws_subnet.public` / `aws_security_group.this`, then `DependencyViolation` | No `retention_policy { home_efs_file_system = "Delete" }` → EFS mount target pins the subnet | Add it for next time. Now: EFS console → filesystem tagged `ManagedByAmazonSageMakerResource` → delete mount targets → delete filesystem → delete the two `security-group-for-*-nfs-d-*` SGs → `terraform destroy` again |
+| Destroy fails on `aws_sagemaker_user_profile`: apps still `InService` | JupyterLab space left running | Stop it (Step 17 check); wait for `list-apps` empty; destroy again |
+| `terraform destroy` → `BucketNotEmpty` | `force_destroy` omitted | Add it, `terraform apply` (updates in place), destroy again. Or empty the bucket including versions by hand |
+| Second `terraform plan` shows a change on the Domain every time | Missing `studio_web_portal_settings {}` | Step 4; apply once more, plan goes to "No changes" |
+| `Error acquiring the state lock` … `ConditionalCheckFailedException` | Previous run was killed mid-write (Ctrl-C twice, closed laptop) | `terraform force-unlock <ID from the error>` — only after confirming no other apply is running |
+| `verify-lab1.sh`: `ERROR: Run 'terraform apply' … first` | Run from inside `environments/dev`, or destroy already ran | Run from repo root, while the stack is up |
+| `verify-lab1.sh`: `B2 apply output shows Apply complete` fails | apply not captured with `tee`, or captured to the wrong path | Step 16 — path is relative to `environments/dev`: `../../../docs/` |
+| `verify-lab1.sh`: `B4 No hardcoded 'northstar' literals` fails | `"northstar-dev-data-*"` in the IAM policy, or a bucket name string | Build it from `var.project`/`var.environment` + `aws_caller_identity` (Step 3) |
+| `verify-lab1.sh`: `A3 IAM sim: MLEngineer DENIED write to raw/` fails (`allowed`) | S3 object statement on `${bucket_arn}/*` or `s3:*` | Scope to `/artifacts/*` and `/features/*` only |
+| Studio page: "Permissions not configured correctly" | `StudioSelfService` statement missing | Step 3; `terraform apply` updates the policy in place, reload Studio |
+| `make local-validate`: `Cannot connect to the Docker daemon` | Docker Desktop not running | Start it, re-run |
+| `make local-validate`: `dial tcp 127.0.0.1:4566: connection refused` | LocalStack not healthy yet, or port in use | `docker compose ps` (should be `healthy`); `lsof -i :4566` for a squatter |
+| `make local-validate`: `awslocal: command not found` | Not installed, or installed off `PATH` | `pipx install awscli-local` |
+| LocalStack output shows `172.31.0.0/16` and six subnets | LocalStack's emulated default VPC | Expected; rubric ignores it. The student's `10.0.0.0/16` should also be there |
+| `check-secrets.sh` flags `AKIAIOSFODNN7EXAMPLE` | Student is running an old `git log -S AKIA` from a stale kit | Use the shipped script; it whitelists AWS's placeholder |
+| `Warning: Deprecated Parameter "dynamodb_table"` on every command | Terraform ≥ 1.11 | Harmless. Keep `dynamodb_table` — the rubric grades the lock table (Phase 3 note) |
+| `terraform fmt -check` fails on a file that "looks fine" | `=` alignment, trailing whitespace, tabs | `terraform fmt -recursive infrastructure/` and commit |
