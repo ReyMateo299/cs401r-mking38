@@ -75,7 +75,11 @@ fi
 
 # ── Patch backend.tf with real account ID ─────────────────────────────────────
 BACKEND_FILE="infrastructure/environments/dev/backend.tf"
-if grep -q "YOUR_ACCOUNT_ID" "${BACKEND_FILE}"; then
+if [ ! -f "${BACKEND_FILE}" ] && [ -f "${BACKEND_FILE}.example" ]; then
+  echo "[COPY] ${BACKEND_FILE}.example -> ${BACKEND_FILE}"
+  cp "${BACKEND_FILE}.example" "${BACKEND_FILE}"
+fi
+if grep -q "YOUR_ACCOUNT_ID" "${BACKEND_FILE}" 2>/dev/null; then
   echo "[PATCH] Updating ${BACKEND_FILE} with account ID"
   sed -i.bak "s/YOUR_ACCOUNT_ID/${AWS_ACCOUNT_ID}/g" "${BACKEND_FILE}"
   rm -f "${BACKEND_FILE}.bak"
@@ -88,8 +92,8 @@ echo ""
 echo "==> Bootstrap complete."
 echo ""
 echo "Next steps:"
-echo "  1. Copy terraform.tfvars.example to terraform.tfvars and fill in your account ID"
-echo "  2. cd infrastructure/environments/dev"
+echo "  1. cd infrastructure/environments/dev"
+echo "  2. (optional) cp terraform.tfvars.example terraform.tfvars and adjust; every value is a default"
 echo "  3. terraform init"
 echo "  4. terraform plan"
 echo "  5. terraform apply"
