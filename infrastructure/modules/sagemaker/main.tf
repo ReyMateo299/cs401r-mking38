@@ -61,7 +61,7 @@ resource "aws_sagemaker_domain" "this" {
   # before failing. Delete tells SageMaker to remove the filesystem with the
   # Domain. Lab data never lives in Studio home directories, so nothing of
   # value is lost.
-q
+
   retention_policy {
     home_efs_file_system = "Delete"
   }

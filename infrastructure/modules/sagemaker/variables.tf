@@ -20,6 +20,22 @@ variable "subnet_ids" {
   type        = list(string)
 }
 
+variable "instance_type" {
+  description = "Default kernel instance type for Studio apps"
+  type        = string
+  default     = "ml.t3.medium"
+}
+
+variable "execution_role_arn" {
+  description = "IAM role Studio assumes for the Domain default user settings and the user profile (the MLEngineer role)"
+  type        = string
+}
+
+variable "security_group_ids" {
+  description = "Security groups attached to Studio apps inside the VPC"
+  type        = list(string)
+}
+
 variable "app_network_access_type" {
   description = "PublicInternetOnly (Lab 1, public subnet) or VpcOnly (Lab 2+, private subnet with NAT egress). Changing this replaces the Domain."
   type        = string

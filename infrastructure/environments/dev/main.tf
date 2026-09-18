@@ -16,16 +16,16 @@ module "storage" {
   environment = var.environment
 }
 
-# module "iam" {
-#   source      = "../../modules/iam"
-#   project     = var.project
-#   environment = var.environment
-# }
+module "iam" {
+  source      = "../../modules/iam"
+  project     = var.project
+  environment = var.environment
+}
 
-# module "sagemaker" {
-#   source      = "../../modules/sagemaker"
-#   project     = var.project
-#   environment = var.environment
-#   vpc_id      = module.vpc.vpc_id
-#   subnet_ids  = [module.vpc.public_subnet_id]
-# }
+module "sagemaker" {
+  source      = "../../modules/sagemaker"
+  project     = var.project
+  environment = var.environment
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = [module.vpc.public_subnet_id]
+}
