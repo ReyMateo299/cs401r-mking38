@@ -8,4 +8,7 @@ output "user_profile_name" {
   value       = aws_sagemaker_user_profile.ml_engineer.user_profile_name
 }
 
-# TODO: Add domain_url ?
+output "domain_url" {
+  description = "URL of the SageMaker Domain"
+  value       = aws_sagemaker_domain.this.url
+}
