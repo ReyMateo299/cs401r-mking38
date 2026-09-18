@@ -15,3 +15,10 @@
 # to exist before anything is written to it.
 
 # TODO: implement the resources above.
+
+# Added from Dr. T's email:
+data "aws_caller_identity" "current" {}
+
+locals {
+  bucket_name = "${var.project}-${var.environment}-data-${data.aws_caller_identity.current.account_id}"
+}
