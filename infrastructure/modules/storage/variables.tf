@@ -21,3 +21,21 @@ variable "force_destroy" {
   type        = bool
   default     = true
 }
+
+variable "enable_lifecycle_rules" {
+  description = "Apply the Lab 2 S3 lifecycle rules. False for LocalStack"
+  type        = bool
+  default     = true
+}
+
+variable "raw_expiration_days" {
+  description = "Days before current objects under raw/ are deleted."
+  type        = number
+  default     = 90
+}
+
+variable "datacapture_expiration_days" {
+  description = "Days before current objects under datacapture/ are deleted."
+  type        = number
+  default     = 7
+}
