@@ -63,8 +63,30 @@ def cast_types(df):
     key for every downstream feature, so a row without it cannot be
     attributed to anyone.
     """
-    # TODO: your implementation here
-    raise NotImplementedError("cast_types is not implemented")
+    cleaned_columns = []
+    for column in df.columns:
+        value = F.trim(F.col(column).cast("string"))
+        cleaned_columns.append(
+            F.when(value == "", None).otherwise(value).alias(column)
+        )
+    cleaned = df.select(*cleaned_columns)
+
+    typed_columns = []
+    for column, data_type in SCHEMA.items():
+        if column == "purchase_date":
+            value = F.coalesce(
+                F.to_date(F.col(column), "yyyy-MM-dd"),
+                F.to_date(F.col(column), "MM/dd/yyyy"),
+            )
+        else:
+            value = F.col(column).cast(data_type)
+        typed_columns.append(value.alias(column))
+
+    typed = cleaned.select(*typed_columns).filter(
+        F.col("customer_id").isNotNull()
+    )
+
+    return typed
 
 
 def impute_nulls(df):
@@ -79,8 +101,16 @@ def impute_nulls(df):
 
     Numeric columns: NUMERIC_COLS.  String columns: STRING_COLS.
     """
-    # TODO: your implementation here
-    raise NotImplementedError("impute_nulls is not implemented")
+    median_values = df.approxQuantile(NUMERIC_COLS, [0.5], 0.0)
+    fills = {}
+    for column, quantiles in zip(NUMERIC_COLS, median_values):
+        if quantiles:
+            median = quantiles[0]
+            fills[column] = (
+                int(round(median)) if column == "num_items" else median
+            )
+
+    return df.na.fill(fills).na.fill("unknown", STRING_COLS)
 
 
 def deduplicate(df):
@@ -101,8 +131,15 @@ def deduplicate(df):
     A window function with row_number() over a partition by transaction_id
     is the idiomatic approach.
     """
-    # TODO: your implementation here
-    raise NotImplementedError("deduplicate is not implemented")
+    transaction_window = Window.partitionBy("transaction_id").orderBy(
+        F.col("purchase_date").desc_nulls_last(),
+        F.col("order_value").desc_nulls_last(),
+    )
+    return (
+        df.withColumn("_row_number", F.row_number().over(transaction_window))
+        .filter(F.col("_row_number") == 1)
+        .drop("_row_number")
+    )
 
 
 def main():
