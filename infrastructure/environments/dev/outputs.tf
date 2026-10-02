@@ -56,3 +56,28 @@ output "sagemaker_domain_url" {
   description = "Studio URL"
   value       = module.sagemaker.domain_url
 }
+
+output "glue_database_name" {
+  description = "Name of the Glue Data Catalog database"
+  value       = module.glue.database_name
+}
+
+output "glue_crawler_name" {
+  description = "Name of the raw customer data crawler"
+  value       = module.glue.crawler_name
+}
+
+output "glue_transform_job_name" {
+  description = "Name of the Glue transform job"
+  value       = module.glue.transform_job_name
+}
+
+output "glue_feature_engineer_job_name" {
+  description = "Name of the Glue feature engineering job"
+  value       = module.glue.feature_engineer_job_name
+}
+
+output "feature_group_name" {
+  description = "Name of the SageMaker feature group"
+  value       = module.feature_store.feature_group_name
+}

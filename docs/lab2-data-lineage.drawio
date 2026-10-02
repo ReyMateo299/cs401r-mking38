@@ -1,0 +1,63 @@
+<mxGraphModel dx="1730" dy="865" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;" value="Lab 2 Data Lineage" vertex="1">
+      <mxGeometry height="40" width="400" x="50" y="45" as="geometry" />
+    </mxCell>
+    <mxCell id="subtitle" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=13;fontColor=#666666;" value="Formats label each data movement; DataEngineer performs every platform write." vertex="1">
+      <mxGeometry height="25" width="700" x="50" y="85" as="geometry" />
+    </mxCell>
+    <mxCell id="source" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" value="&lt;b&gt;Source system&lt;/b&gt;&lt;br&gt;Customer transactions" vertex="1">
+      <mxGeometry height="70" width="150" x="80" y="150" as="geometry" />
+    </mxCell>
+    <mxCell id="raw" parent="1" style="shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;" value="&lt;b&gt;S3 raw/customers/&lt;/b&gt;&lt;br&gt;Landing zone" vertex="1">
+      <mxGeometry height="70" width="165" x="417.5" y="150" as="geometry" />
+    </mxCell>
+    <mxCell id="crawler" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" value="&lt;b&gt;Glue Crawler&lt;/b&gt;&lt;br&gt;northstar-dev-raw-crawler" vertex="1">
+      <mxGeometry height="70" width="190" x="760" y="150" as="geometry" />
+    </mxCell>
+    <mxCell id="catalog" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" value="&lt;b&gt;Glue Data Catalog&lt;/b&gt;&lt;br&gt;northstar_dev.customers" vertex="1">
+      <mxGeometry height="70" width="190" x="760" y="290" as="geometry" />
+    </mxCell>
+    <mxCell id="transform" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" value="&lt;b&gt;Glue Transform Job&lt;/b&gt;&lt;br&gt;northstar-dev-transform" vertex="1">
+      <mxGeometry height="70" width="190" x="405" y="290" as="geometry" />
+    </mxCell>
+    <mxCell id="processed" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;" value="&lt;b&gt;S3 processed/customers/&lt;/b&gt;&lt;br&gt;Transaction-grain Parquet" vertex="1">
+      <mxGeometry height="70" width="200" x="55" y="290" as="geometry" />
+    </mxCell>
+    <mxCell id="feature_job" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;" value="&lt;b&gt;Glue Feature Engineer Job&lt;/b&gt;&lt;br&gt;northstar-dev-feature-engineer" vertex="1">
+      <mxGeometry height="70" width="200" x="55" y="460" as="geometry" />
+    </mxCell>
+    <mxCell id="features" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;" value="&lt;b&gt;S3 features/customers/&lt;/b&gt;&lt;br&gt;Customer-grain Parquet" vertex="1">
+      <mxGeometry height="70" width="190" x="60" y="630" as="geometry" />
+    </mxCell>
+    <mxCell id="feature_store" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;" value="&lt;b&gt;SageMaker Feature Store&lt;/b&gt;&lt;br&gt;northstar-dev-customer-features" vertex="1">
+      <mxGeometry height="70" width="200" x="420" y="450" as="geometry" />
+    </mxCell>
+    <mxCell id="e1" edge="1" parent="1" source="source" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="raw" value="CSV&lt;br&gt;DataEngineer writes">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e2" edge="1" parent="1" source="raw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="crawler" value="CSV scan&lt;br&gt;DataEngineer reads">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e3" edge="1" parent="1" source="crawler" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="catalog" value="Catalog metadata&lt;br&gt;DataEngineer writes">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e4" edge="1" parent="1" source="catalog" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="transform" value="Catalog table&lt;br&gt;DataEngineer reads">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e5" edge="1" parent="1" source="transform" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="processed" value="Parquet&lt;br&gt;DataEngineer writes">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e6" edge="1" parent="1" source="processed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="feature_job" value="Parquet&lt;br&gt;DataEngineer reads">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e7" edge="1" parent="1" source="feature_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="features" value="Parquet&lt;br&gt;DataEngineer writes">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e8" edge="1" parent="1" source="feature_job" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;fontSize=12;labelBackgroundColor=#ffffff;" target="feature_store" value="Feature Store records&lt;br&gt;DataEngineer writes">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+  </root>
+</mxGraphModel>
