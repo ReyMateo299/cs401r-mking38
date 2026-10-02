@@ -28,6 +28,18 @@ variable "public_subnet_cidr" {
   default     = "10.0.100.0/24"
 }
 
+variable "private_subnet_cidr" {
+  description = "CIDR block for the private subnet (Lab 2)"
+  type        = string
+  default     = "10.0.1.0/24"
+}
+
+variable "enable_nat_gateway" {
+  description = "Create the NAT Gateway (about $32/month idle). Destroy the stack after each lab."
+  type        = bool
+  default     = true
+}
+
 variable "availability_zone" {
   description = "Availability Zone for the public and private subnets"
   type        = string
@@ -38,4 +50,10 @@ variable "sagemaker_instance_type" {
   description = "Default kernel instance type for SageMaker Studio apps"
   type        = string
   default     = "ml.t3.medium"
+}
+
+variable "enable_lifecycle_rules" {
+  description = "Apply the S3 lifecycle rules (Lab 2)"
+  type        = bool
+  default     = true
 }
