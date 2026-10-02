@@ -9,11 +9,11 @@ variable "environment" {
 }
 
 variable "s3_bucket_name" {
-    description = "Name of the data bucket"
-    type        = string
+  description = "Name of the data bucket"
+  type        = string
 }
 
 variable "data_engineer_role_arn" {
-    description = "ARN of the DataEngineer role"
-    type        = string
+  description = "ARN of the DataEngineer role"
+  type        = string
 }

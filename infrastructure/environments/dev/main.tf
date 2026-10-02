@@ -4,6 +4,28 @@
 #
 # Uncomment each block as you implement the module it calls.
 
+module "feature_store" {
+  source                 = "../../modules/feature_store"
+  project                = var.project
+  environment            = var.environment
+  s3_bucket_name         = module.storage.bucket_name
+  data_engineer_role_arn = module.iam.data_engineer_role_arn
+}
+
+module "glue" {
+  source                 = "../../modules/glue"
+  project                = var.project
+  environment            = var.environment
+  s3_bucket_name         = module.storage.bucket_name
+  data_engineer_role_arn = module.iam.data_engineer_role_arn
+  scripts_dir            = "${path.root}/../../../glue-scripts"
+  feature_group_name     = module.feature_store.feature_group_name
+  aws_region             = var.aws_region
+  private_subnet_id      = module.vpc.private_subnet_id
+  security_group_ids     = [module.vpc.security_group_id]
+  availability_zone      = var.availability_zone
+}
+
 module "vpc" {
   source              = "../../modules/vpc"
   project             = var.project
