@@ -114,6 +114,11 @@ PROC=$(aws s3 ls "s3://${BUCKET}/processed/customers/" --recursive 2>/dev/null |
   || bad "processed/customers/ has Parquet" "none"
 
 # ── Data quality assertions on the actual output ──────────────────────────────
+# These checks run in an embedded Python block. It writes its own PASS/FAIL
+# tally to ${TMP}/dq_counts, and the tally is added to the Summary below. A
+# data-quality FAIL therefore fails the whole script, the same as any other
+# check. (Before 2026-09-23 these lines were printed but not counted, so a
+# grain failure could still end in "0 failed".)
 head2 "Data quality - processed and features (Tasks 2 and 3)"
 
 TMP=$(mktemp -d)
@@ -126,71 +131,92 @@ import glob, sys
 tmp = sys.argv[1]
 tty = sys.stdout.isatty()
 G = "\033[32mPASS\033[0m" if tty else "PASS"; R = "\033[31mFAIL\033[0m" if tty else "FAIL"
+tally = {"pass": 0, "fail": 0}
 def line(status, label, detail=""):
+    tally["pass" if status == G else "fail"] += 1
     print(f"  {status}  {label:<52} {detail}")
+def write_tally():
+    with open(f"{tmp}/dq_counts", "w") as fh:
+        fh.write(f"{tally['pass']} {tally['fail']}\n")
 try:
     import pandas as pd
+    import pyarrow  # noqa: F401  (read_parquet needs an engine)
 except ImportError:
     line(R, "pandas/pyarrow available", "pip install pandas pyarrow")
+    write_tally()
     sys.exit(0)
 
-# processed
-files = glob.glob(f"{tmp}/processed/*.parquet")
-if not files:
-    line(R, "processed Parquet readable", "no files downloaded")
-else:
-    df = pd.concat([pd.read_parquet(f) for f in files])
-    line(G if df.customer_id.isna().sum()==0 else R,
-         "processed: 0 null customer_id", f"{df.customer_id.isna().sum()} nulls")
-    dups = df.transaction_id.duplicated().sum()
-    line(G if dups==0 else R, "processed: 0 duplicate transaction_id", f"{dups} dups")
-    line(G if df.purchase_date.isna().sum()==0 else R,
-         "processed: all purchase_date parsed", f"{df.purchase_date.isna().sum()} nulls")
-    grain = len(df) > df.customer_id.nunique()
-    line(G if grain else R, "processed: transaction-level grain preserved",
-         f"{len(df)} rows / {df.customer_id.nunique()} customers")
+def checks():
 
-# features
-files = glob.glob(f"{tmp}/features/*.parquet")
-if not files:
-    line(R, "features Parquet readable", "no files downloaded")
-else:
-    fd = pd.concat([pd.read_parquet(f) for f in files])
-    nulls = int(fd.isna().sum().sum())
-    line(G if nulls==0 else R, "features: no null values", f"{nulls} nulls")
-    one_row = len(fd) == fd.customer_id.nunique()
-    line(G if one_row else R, "features: one row per customer",
-         f"{len(fd)} rows / {fd.customer_id.nunique()} customers")
-    lo, hi = fd.churn_risk_score.min(), fd.churn_risk_score.max()
-    line(G if lo>=0 and hi<=1 else R, "features: churn_risk_score in [0,1]",
-         f"{lo:.3f} - {hi:.3f}")
-    expected = ["days_since_last_purchase","customer_tenure_days","purchase_frequency_30d",
-                "purchase_frequency_90d","purchase_frequency_180d","avg_order_value",
-                "total_spend_90d","total_lifetime_value","avg_basket_size_6m",
-                "category_diversity_score","online_to_store_ratio","loyalty_tier",
-                "churn_risk_score","churn_label"]
-    missing = [c for c in expected if c not in fd.columns]
-    line(G if not missing else R, "features: all 14 columns present",
-         "missing: " + ", ".join(missing) if missing else "")
-    if "churn_label" in fd.columns:
-        rate = fd.churn_label.mean()
-        line(G if 0.15 <= rate <= 0.30 else R,
-             "features: churn_label rate plausible (15-30%)", f"{rate:.1%}")
-        # Leakage smoke test: a label perfectly separable by recency alone
-        # means the temporal split was not applied.
-        if "days_since_last_purchase" in fd.columns and fd.churn_label.nunique() > 1:
-            hi_r = fd[fd.churn_label==1].days_since_last_purchase.min()
-            lo_r = fd[fd.churn_label==0].days_since_last_purchase.max()
-            line(G if hi_r < lo_r else R,
-                 "features: label not trivially separable by recency",
-                 f"churner min recency {hi_r:.0f} vs active max {lo_r:.0f}")
-    tiers = set(fd.loyalty_tier.unique())
-    want = {"Bronze","Silver","Gold","Platinum"}
-    line(G if tiers==want else R, "features: all 4 loyalty tiers present",
-         ", ".join(sorted(tiers)))
-    line(G if fd.churn_risk_score.nunique()>3 else R,
-         "features: churn score non-degenerate", f"{fd.churn_risk_score.nunique()} distinct")
+    # processed
+    files = glob.glob(f"{tmp}/processed/*.parquet")
+    if not files:
+        line(R, "processed Parquet readable", "no files downloaded")
+    else:
+        df = pd.concat([pd.read_parquet(f) for f in files])
+        line(G if df.customer_id.isna().sum()==0 else R,
+             "processed: 0 null customer_id", f"{df.customer_id.isna().sum()} nulls")
+        dups = df.transaction_id.duplicated().sum()
+        line(G if dups==0 else R, "processed: 0 duplicate transaction_id", f"{dups} dups")
+        line(G if df.purchase_date.isna().sum()==0 else R,
+             "processed: all purchase_date parsed", f"{df.purchase_date.isna().sum()} nulls")
+        grain = len(df) > df.customer_id.nunique()
+        line(G if grain else R, "processed: transaction-level grain preserved",
+             f"{len(df)} rows / {df.customer_id.nunique()} customers")
+
+    # features
+    files = glob.glob(f"{tmp}/features/*.parquet")
+    if not files:
+        line(R, "features Parquet readable", "no files downloaded")
+    else:
+        fd = pd.concat([pd.read_parquet(f) for f in files])
+        nulls = int(fd.isna().sum().sum())
+        line(G if nulls==0 else R, "features: no null values", f"{nulls} nulls")
+        one_row = len(fd) == fd.customer_id.nunique()
+        line(G if one_row else R, "features: one row per customer",
+             f"{len(fd)} rows / {fd.customer_id.nunique()} customers")
+        lo, hi = fd.churn_risk_score.min(), fd.churn_risk_score.max()
+        line(G if lo>=0 and hi<=1 else R, "features: churn_risk_score in [0,1]",
+             f"{lo:.3f} - {hi:.3f}")
+        expected = ["days_since_last_purchase","customer_tenure_days","purchase_frequency_30d",
+                    "purchase_frequency_90d","purchase_frequency_180d","avg_order_value",
+                    "total_spend_90d","total_lifetime_value","avg_basket_size_6m",
+                    "category_diversity_score","online_to_store_ratio","loyalty_tier",
+                    "churn_risk_score","churn_label"]
+        missing = [c for c in expected if c not in fd.columns]
+        line(G if not missing else R, "features: all 14 columns present",
+             "missing: " + ", ".join(missing) if missing else "")
+        if "churn_label" in fd.columns:
+            rate = fd.churn_label.mean()
+            line(G if 0.15 <= rate <= 0.30 else R,
+                 "features: churn_label rate plausible (15-30%)", f"{rate:.1%}")
+            # Leakage smoke test: a label perfectly separable by recency alone
+            # means the temporal split was not applied.
+            if "days_since_last_purchase" in fd.columns and fd.churn_label.nunique() > 1:
+                hi_r = fd[fd.churn_label==1].days_since_last_purchase.min()
+                lo_r = fd[fd.churn_label==0].days_since_last_purchase.max()
+                line(G if hi_r < lo_r else R,
+                     "features: label not trivially separable by recency",
+                     f"churner min recency {hi_r:.0f} vs active max {lo_r:.0f}")
+        tiers = set(fd.loyalty_tier.unique())
+        want = {"Bronze","Silver","Gold","Platinum"}
+        line(G if tiers==want else R, "features: all 4 loyalty tiers present",
+             ", ".join(sorted(tiers)))
+        line(G if fd.churn_risk_score.nunique()>3 else R,
+             "features: churn score non-degenerate", f"{fd.churn_risk_score.nunique()} distinct")
+
+try:
+    checks()
+except Exception as e:  # a crash (e.g. a missing column) is a failure, not a skip
+    line(R, "data-quality checks completed", f"{type(e).__name__}: {e}")
+write_tally()
 PY
+if [ -s "${TMP}/dq_counts" ]; then
+  read -r DQ_PASS DQ_FAIL < "${TMP}/dq_counts"
+  PASS=$((PASS + DQ_PASS)); FAIL=$((FAIL + DQ_FAIL))
+else
+  bad "data-quality checks ran" "python3 block did not complete"
+fi
 rm -rf "${TMP}"
 
 # ── Task 3: Feature Store ──────────────────────────────────────────────────────
