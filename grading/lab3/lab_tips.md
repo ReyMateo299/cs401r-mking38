@@ -112,6 +112,52 @@ FROM "sagemaker_featurestore"."YOUR_OFFLINE_STORE_TABLE";
 
 If the count is zero, rerun the Lab 2 feature-engineering Glue job. If the table itself is missing after a teardown, re-apply the stack first, then repopulate it.
 
+## Keep aggregate evaluation separate from slice evaluation
+
+Do not replace `evaluate_model(model, X_val, y_val, baseline_proba)`: the starter already uses it for the overall metrics and the recency-baseline confidence interval.
+
+The Solution Notes code in Step 2.4 replaces the separate `evaluate_slices` stub. Its updated signature accepts `tiers` (the `tier_val` array that travels through `train_test_split`) and optional reliability/bootstrapping arguments. After the existing aggregate-evaluation line, add:
+
+```python
+slice_results = evaluate_slices(model, X_val, y_val, tier_val)
+```
+
+Then pass `slice_results` to the updated tracking and registration functions described in the later solution steps.
+
+## macOS zsh: make reusable command arguments an array
+
+The Solution Notes use a bash-style reusable string:
+
+```bash
+COMMON="--feature-group-name $FG --artifacts-bucket $BUCKET --mlflow-arn $MLFLOW_APP_ARN"
+python models/churn/train.py $COMMON ...
+```
+
+In zsh (the default macOS shell), `$COMMON` is passed as one argument instead of being split into flags. `argparse` then reports that `--artifacts-bucket` is missing even though `echo $COMMON` looks correct.
+
+Use a zsh array instead:
+
+```zsh
+COMMON=(--feature-group-name "$FG" --artifacts-bucket "$BUCKET" --mlflow-arn "$MLFLOW_APP_ARN")
+python models/churn/train.py "${COMMON[@]}" --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
+```
+
+Or put each flag directly in the `python` command. The SDK v2 deprecation warning in the output is expected for this lab and is unrelated to the argument error.
+
+## Athena returns zero rows: check the Feature Store ingest-date window first
+
+`event_time` in this lab is when the Lab 2 feature-engineering job ran, not the historical cutoff date used to calculate features. If your script defaults to a window ending on `2026-06-01`, it will exclude a Fall 2026 Lab 2 run even when the Feature Store has data.
+
+Run with the semester-wide window:
+
+```zsh
+python models/churn/train.py "${COMMON[@]}" \
+  --training-start-date 2026-01-01 --training-end-date 2027-01-01 \
+  --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
+```
+
+The current starter kit uses those defaults. If your copied script instead defaults to `2025-02-01` through `2026-06-01`, update those defaults or keep supplying the two flags. Only rerun the Lab 2 feature pipeline after confirming the Feature Group/offline store is missing or the wider date window still returns zero rows.
+
 ## Which infrastructure each Lab 3 track needs
 
 Track A is required for everyone and needs the Lab 2 Feature Group/offline store, the Lab 2 data bucket, and the MLflow App/Model Registry resources it creates or uses.
@@ -119,3 +165,33 @@ Track A is required for everyone and needs the Lab 2 Feature Group/offline store
 Track B also depends on Task 1: it generates offers for high-risk customers and uses their churn score and Feature Store profile. Keep Lab 2 data available for Track B.
 
 Track C's customer-service agent does not itself need the Feature Store, MLflow, Model Registry, a SageMaker endpoint, or a Studio kernel. Its required order lookup is simulated and its policy tool reads the local starter-kit corpus. It does require Bedrock access. Remember that Track A remains required even if you choose Track C.
+
+## Pandas 3: fix the `train_test_split` slice-label error
+
+If `train.py` fails at `train_test_split` with:
+
+```text
+TypeError: only integer scalar arrays can be converted to a scalar index
+```
+
+the `loyalty_tier` column is probably a pandas 3 Arrow-backed string array. Do not pass `.values` directly to scikit-learn. Convert the tiers to a regular NumPy array first:
+
+```python
+tiers = df[SLICE_COLUMN].to_numpy(dtype=str)
+X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
+    X, y, tiers, test_size=0.30, random_state=42, stratify=y,
+)
+```
+
+Keep the tiers in the same `train_test_split` call as `X` and `y`; this is what preserves their row-by-row alignment for slice evaluation.
+
+## Save Task 1 grading evidence before tearing down AWS resources
+
+Your grader should be able to review Task 1 without starting your infrastructure. Before cleanup, save these files in your repository under `docs/lab3-task1-evidence/`:
+
+- the held-out evaluation metrics and per-tier slice results;
+- an MLflow `search_runs` export showing at least three meaningful runs with parameters and metrics;
+- the Model Registry package description showing `PendingManualApproval` and its evaluation metadata;
+- your training command/configuration and XGBoost version.
+
+Keep the training script and design document with them. The saved evidence makes the AWS results reviewable after teardown; it does not replace using Athena, MLflow, or Model Registry for the lab.

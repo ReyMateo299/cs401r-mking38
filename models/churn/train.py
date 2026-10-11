@@ -36,6 +36,8 @@ from datetime import datetime, timezone
 
 import boto3
 import numpy as np
+import tarfile
+from botocore.exceptions import ClientError
 import pandas as pd
 
 # SageMaker imports — available in SageMaker training containers.
@@ -82,10 +84,10 @@ def parse_args():
     # Data configuration
     parser.add_argument("--feature-group-name", type=str, default="northstar-churn-features",
                         help="SageMaker Feature Store feature group name")
-    parser.add_argument("--training-start-date", type=str, default="2025-02-01",
-                        help="Start date for training data window (YYYY-MM-DD)")
-    parser.add_argument("--training-end-date", type=str, default="2026-06-01",
-                        help="End date for training data window (YYYY-MM-DD)")
+    parser.add_argument("--training-start-date", type=str, default="2026-01-01",
+                        help="Earliest Lab 2 ingest date to include (YYYY-MM-DD)")
+    parser.add_argument("--training-end-date", type=str, default="2027-01-01",
+                        help="Latest Lab 2 ingest date to include (YYYY-MM-DD)")
     parser.add_argument("--artifacts-bucket", type=str, required=True,
                         help="S3 bucket for model artifacts")
     parser.add_argument("--local-data-path", type=str, default=None,
@@ -127,6 +129,9 @@ def parse_args():
                         default=os.environ.get("SM_MODEL_DIR", "./model"))
     parser.add_argument("--output-data-dir", type=str,
                         default=os.environ.get("SM_OUTPUT_DATA_DIR", "./output"))
+    # Unique to the Solution notes
+    parser.add_argument("--model-package-group", type=str,
+                        default=os.environ.get("MODEL_PACKAGE_GROUP", "northstar-churn-models"))
 
     return parser.parse_args()
 
@@ -576,152 +581,173 @@ def evaluate_model(model: xgb.Booster,
 
 # ── Slice Evaluation ───────────────────────────────────────────────────────────
 
-def evaluate_slices(model: xgb.Booster,
-                    X_val: np.ndarray,
-                    y_val: np.ndarray,
-                    slice_column: pd.Series) -> dict:
+def evaluate_slices(model, X_val, y_val, tiers, min_class_count=20,
+                    n_boot=1000, seed=42) -> dict:
+    """Per-tier AUC and recall@10%, with n, positives, and an AUC interval.
+
+    Uses the GLOBAL top-10% cutoff: the retention team contacts the top 10% of
+    all customers, not the top 10% within each tier, so recall per tier is
+    'of this tier's churners, how many made the global contact list'.
     """
-    Evaluate model performance by slice (e.g., loyalty_tier, age_band).
-    Flag slices where recall@10% drops more than 10pp below aggregate.
+    proba = model.predict(xgb.DMatrix(X_val, feature_names=FEATURE_COLUMNS))
+    cutoff = np.percentile(proba, 90)
+    contacted = proba >= cutoff
+    agg_recall = contacted[y_val == 1].mean()
+    agg_auc = roc_auc_score(y_val, proba)
 
-    TODO: Implement this function in Lab 3.
-    """
-    dval = xgb.DMatrix(X_val, feature_names=FEATURE_COLUMNS)
-    y_pred_proba = model.predict(dval)
-    aggregate_recall = None  # TODO: compute
+    rng = np.random.default_rng(seed)
+    tiers = np.asarray(tiers)
+    results = {}
+    print(f"\n── Slice evaluation (aggregate AUC {agg_auc:.4f}, recall@10% {agg_recall:.4f}) ──")
+    print(f"  {'tier':10s} {'n':>5s} {'pos':>4s} {'churn':>6s} {'AUC':>7s} {'95% CI':>17s} {'rec@10':>7s}  note")
 
-    slice_results = {}
-    for slice_value in slice_column.unique():
-        mask = (slice_column == slice_value).values
-        # TODO: compute recall@10% for this slice
-        # Flag if recall < aggregate_recall - 0.10
-        pass
+    for tier in ["Bronze", "Silver", "Gold", "Platinum"]:
+        m = tiers == tier
+        y_t, p_t, c_t = y_val[m], proba[m], contacted[m]
+        n, pos = int(m.sum()), int(y_t.sum())
+        neg = n - pos
+        if n == 0:
+            continue
 
-    return slice_results
+        auc_t = roc_auc_score(y_t, p_t) if pos and neg else float("nan")
+        rec_t = c_t[y_t == 1].mean() if pos else float("nan")
+
+        # Bootstrap the slice AUC so its width - not just its point value - is visible.
+        boots = []
+        for _ in range(n_boot):
+            s = rng.integers(0, n, n)
+            if 0 < y_t[s].sum() < n:
+                boots.append(roc_auc_score(y_t[s], p_t[s]))
+        lo, hi = (np.percentile(boots, [2.5, 97.5]) if boots else (np.nan, np.nan))
+
+        reliable = pos >= min_class_count and neg >= min_class_count
+        weak_recall = reliable and rec_t < agg_recall - 0.10
+        note = ("TOO SMALL - no conclusion" if not reliable
+                else "recall >10pp below aggregate" if weak_recall else "")
+
+        results[tier] = {"n": n, "positives": pos, "churn_rate": round(pos / n, 4),
+                         "auc": round(float(auc_t), 4), "auc_ci_low": round(float(lo), 4),
+                         "auc_ci_high": round(float(hi), 4), "recall_top10": round(float(rec_t), 4),
+                         "reliable": reliable, "flag_weak_recall": bool(weak_recall)}
+        print(f"  {tier:10s} {n:5d} {pos:4d} {pos/n:6.1%} {auc_t:7.4f} "
+              f"[{lo:.3f}, {hi:.3f}] {rec_t:7.4f}  {note}")
+
+    reliable_tiers = {t: r for t, r in results.items() if r["reliable"]}
+    if reliable_tiers:
+        worst = min(reliable_tiers, key=lambda t: reliable_tiers[t]["auc"])
+        print(f"  Weakest reliable tier by AUC: {worst}")
+        results["_worst_tier"] = worst
+    return results
 
 
 # ── Experiment Tracking (MLflow App) ───────────────────────────────────────────
 
-def track_run(args, metrics: dict, scale_pos_weight: float) -> None:
-    """
-    Log this training run to your SageMaker MLflow App.
-
-    Worth 5 points in Task 1: >=3 runs, each with logged params AND metrics,
-    retrievable via mlflow.search_runs.
-
-    ###########################################################################
-    #  THERE ARE TWO MLflow PRODUCTS ON SAGEMAKER. USE THE APP.               #
-    #                                                                         #
-    #    CreateMlflowApp            serverless   NO ADDITIONAL CHARGE   <-- ok #
-    #    CreateMlflowTrackingServer $0.60/hour   until you delete it    <-- NO #
-    #                                                                         #
-    #  $0.60/hr breaches the entire $10 course budget in 16.7 hours and costs #
-    #  about $43 over a weekend -- more per hour than any endpoint in this    #
-    #  course. It is not an endpoint, so "did I delete my endpoints?" will    #
-    #  not find it. Most tutorials describe the Tracking Server because it    #
-    #  shipped first. If anything asks you to choose a size (Small/Medium),   #
-    #  you are on the wrong product.                                          #
-    ###########################################################################
-
-    Two things that fail in ways the error does not explain:
-
-      1. `create-mlflow-app` postdates many installed AWS CLIs. An old CLI
-         says "Invalid choice: 'create-mlflow-app'", which reads like a typo
-         rather than a version problem. Check `aws --version` and upgrade.
-
-      2. You need BOTH `mlflow` and `sagemaker-mlflow` installed. The second
-         is the SigV4 auth plugin for arn:aws:sagemaker:... tracking URIs.
-         Without it you get a connection error that never mentions credentials.
-
-    TODO: Implement this function.
-    """
+def track_run(args, metrics: dict, scale_pos_weight: float,
+              slice_results: dict | None = None, model=None) -> None:
     if not args.mlflow_arn:
         print("\n(no --mlflow-arn given; skipping experiment tracking)")
         return
 
-    # TODO: log this run to the MLflow App.
-    #
-    # import mlflow
-    #
-    # mlflow.set_tracking_uri(args.mlflow_arn)   # the App ARN, verbatim
-    # mlflow.set_experiment(args.mlflow_experiment)
-    #
-    # with mlflow.start_run(run_name=args.run_name):
-    #     mlflow.log_params({
-    #         "max_depth": args.max_depth,
-    #         "eta": args.eta,
-    #         "num_round": args.num_round,
-    #         "min_child_weight": args.min_child_weight,
-    #         "subsample": args.subsample,
-    #         "colsample_bytree": args.colsample_bytree,
-    #         "scale_pos_weight": scale_pos_weight,
-    #         "xgboost_version": xgb.__version__,   # see below -- this matters
-    #     })
-    #     mlflow.log_metrics({
-    #         k: v for k, v in metrics.items() if isinstance(v, (int, float))
-    #     })
-    #
-    # LOG THE XGBOOST VERSION AS A PARAM. Lab 3 documents that identical data
-    # and an identical split produce different metrics on XGBoost 3.2.0 vs 1.7
-    # (the SageMaker training container is 1.7). If you train some runs locally
-    # and some through SageMaker and do not record the version, you will end up
-    # comparing two things that were never comparable and cannot tell why.
-    #
-    # THREE RUNS IS THE FLOOR, NOT THE GOAL. Three runs with identical
-    # hyperparameters and different seeds is the same experiment three times;
-    # it earns 2 of 5. Vary something you can defend, and be able to say what
-    # the variation did to the metrics.
+    import mlflow
+    mlflow.set_tracking_uri(args.mlflow_arn)
+    mlflow.set_experiment(args.mlflow_experiment)
 
-    print("TODO: Log run to MLflow App (see comments above)")
+    with mlflow.start_run(run_name=args.run_name):
+        mlflow.log_params({
+            "max_depth": args.max_depth,
+            "eta": args.eta,
+            "num_round": args.num_round,
+            "min_child_weight": args.min_child_weight,
+            "subsample": args.subsample,
+            "colsample_bytree": args.colsample_bytree,
+            "scale_pos_weight": round(scale_pos_weight, 4),
+            "include_risk_score": getattr(args, "include_risk_score", False),
+            "n_features": len(FEATURE_COLUMNS),
+            "xgboost_version": xgb.__version__,
+            "best_iteration": getattr(model, "best_iteration", None),
+        })
+        mlflow.log_metrics({k: v for k, v in metrics.items()
+                            if isinstance(v, (int, float))})
+
+        # Per-slice metrics, so tier behavior is comparable across runs.
+        for tier, r in (slice_results or {}).items():
+            if tier.startswith("_"):
+                continue
+            mlflow.log_metrics({f"slice_{tier}_auc": r["auc"],
+                                f"slice_{tier}_recall_top10": r["recall_top10"],
+                                f"slice_{tier}_n": r["n"]})
+
+        # Feature importance as a table and a plot - required in the design doc anyway.
+        if model is not None:
+            gain = model.get_score(importance_type="gain")
+            mlflow.log_dict(gain, "feature_importance_gain.json")
+            import matplotlib; matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            ax = xgb.plot_importance(model, importance_type="gain", show_values=False)
+            ax.figure.tight_layout()
+            mlflow.log_figure(ax.figure, "feature_importance_gain.png")
+            plt.close(ax.figure)
 
 
 # ── Model Saving & Registry ────────────────────────────────────────────────────
 
-def save_and_register_model(model: xgb.Booster,
-                             metrics: dict,
-                             args) -> None:
-    """
-    Save the model artifact and register it in SageMaker Model Registry.
-    Status is set to PendingManualApproval — human approval required before deployment.
-    """
+def save_and_register_model(model, metrics: dict, args, slice_results: dict | None = None) -> None:
     os.makedirs(args.model_dir, exist_ok=True)
+    stamp = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
 
-    # Save model
-    model_path = os.path.join(args.model_dir, "model.xgb")
-    model.save_model(model_path)
-    print(f"\n✓ Model saved to {model_path}")
-
-    # Save feature metadata alongside model
-    metadata = {
-        "feature_columns": FEATURE_COLUMNS,
-        "label_column": LABEL_COLUMN,
-        "hyperparameters": {
-            "max_depth": args.max_depth,
-            "eta": args.eta,
-            "num_round": args.num_round,
-        },
-        "evaluation_metrics": metrics,
-        "training_date": datetime.utcnow().isoformat(),
-    }
+    # SageMaker's XGBoost container looks for the model inside model.tar.gz.
+    model_file = os.path.join(args.model_dir, "xgboost-model")
+    model.save_model(model_file)
+    metadata = {"feature_columns": FEATURE_COLUMNS, "label_column": LABEL_COLUMN,
+                "xgboost_version": xgb.__version__, "evaluation_metrics": metrics,
+                "slice_results": slice_results, "training_date": stamp}
     with open(os.path.join(args.model_dir, "model_metadata.json"), "w") as f:
-        json.dump(metadata, f, indent=2)
+        json.dump(metadata, f, indent=2, default=str)
 
-    # TODO: Register in SageMaker Model Registry
-    # The model package group should be "northstar-churn-model-group"
-    # Include the evaluation metrics in the model card / description
-    # Status must be "PendingManualApproval" — never "Approved" from this script
-    #
-    # sm_client = boto3.client("sagemaker")
-    # sm_client.create_model_package(
-    #     ModelPackageGroupName="northstar-churn-model-group",
-    #     ModelPackageDescription=f"Churn model trained {datetime.utcnow().date()}",
-    #     InferenceSpecification={...},
-    #     ModelApprovalStatus="PendingManualApproval",
-    #     CustomerMetadataProperties={
-    #         k: str(v) for k, v in metrics.items()
-    #     },
-    # )
-    print("TODO: Register model in SageMaker Model Registry (see comments above)")
+    tar_path = os.path.join(args.output_data_dir, "model.tar.gz")
+    with tarfile.open(tar_path, "w:gz") as tar:
+        tar.add(model_file, arcname="xgboost-model")
+
+    s3_key = f"artifacts/models/churn/{stamp}/model.tar.gz"
+    boto3.client("s3").upload_file(tar_path, args.artifacts_bucket, s3_key)
+    model_data_url = f"s3://{args.artifacts_bucket}/{s3_key}"
+    print(f"✓ Uploaded {model_data_url}")
+
+    region = boto3.session.Session().region_name
+    image = sagemaker.image_uris.retrieve("xgboost", region=region, version="1.7-1")
+
+    sm = boto3.client("sagemaker")
+    try:
+        sm.create_model_package_group(
+            ModelPackageGroupName=args.model_package_group,
+            ModelPackageGroupDescription="NorthStar churn prediction models")
+    except ClientError as e:
+        if "already exists" not in str(e):
+            raise
+
+    worst = (slice_results or {}).get("_worst_tier")
+    meta = {k: str(v) for k, v in metrics.items()}
+    meta.update({"xgboost_version": xgb.__version__, "run_name": str(args.run_name)})
+    if worst:
+        meta.update({"slice_worst_tier": worst,
+                     "slice_worst_auc": str(slice_results[worst]["auc"])})
+
+    resp = sm.create_model_package(
+        ModelPackageGroupName=args.model_package_group,
+        ModelPackageDescription=(f"XGBoost churn, AUC {metrics['auc_roc']}, "
+                                 f"lift {metrics['auc_vs_baseline']} "
+                                 f"CI [{metrics['lift_ci_low']}, {metrics['lift_ci_high']}]"),
+        InferenceSpecification={
+            "Containers": [{"Image": image, "ModelDataUrl": model_data_url}],
+            "SupportedContentTypes": ["text/csv"],
+            "SupportedResponseMIMETypes": ["text/csv"],
+            "SupportedRealtimeInferenceInstanceTypes": ["ml.m5.large"],
+            "SupportedTransformInstanceTypes": ["ml.m5.large"],
+        },
+        ModelApprovalStatus="PendingManualApproval",   # never "Approved" from code
+        CustomerMetadataProperties=meta,
+    )
+    print(f"✓ Registered {resp['ModelPackageArn']} (PendingManualApproval)")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────────
@@ -766,8 +792,10 @@ def main():
     #   X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
     #       X, y, df[SLICE_COLUMN], test_size=0.30, random_state=42, stratify=y)
     # Re-deriving the tiers afterwards from df will NOT line up.
+    tiers = df[SLICE_COLUMN].to_numpy(dtype=str)
+
     X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
-        X, y, df[SLICE_COLUMN].values,
+        X, y, tiers,
         test_size=0.30, random_state=42, stratify=y,
     )
     print(f"\nTrain: {len(X_train):,} | Validation: {len(X_val):,}")
@@ -778,12 +806,14 @@ def main():
     # 5. Evaluate
     baseline_proba = train_recency_baseline(X_train, y_train, X_val)
     metrics = evaluate_model(model, X_val, y_val, baseline_proba)
+    slice_results = evaluate_slices(model, X_val, y_val, tier_val)
 
     # 6. Save and register
-    save_and_register_model(model, metrics, args)
+    save_and_register_model(model, metrics, args, slice_results)
 
     # 7. Track this run in your MLflow App (Task 1, 5 pts)
-    track_run(args, metrics, getattr(args, "resolved_scale_pos_weight", None))
+    track_run(args, metrics, getattr(args, "resolved_scale_pos_weight", None),
+              slice_results, model)
 
     # 8. Write metrics to output. SageMaker also collects these as job output;
     #    that is job lineage, NOT experiment tracking. It records that a job

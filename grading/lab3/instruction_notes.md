@@ -95,3 +95,74 @@ The Lab 3 solution notes correctly say that, if the Feature Group is gone, stude
 **Suggested revision:** Amend the Lab 3 teardown guidance to distinguish the two scopes:
 
 > `teardown-lab3.sh` is safe after Task 1: it removes billable endpoints and active jobs while retaining the MLflow App, run history, and registry records. Do not run `teardown-lab2.sh` until you are prepared to lose the Feature Store data and S3-backed artifacts. If you do tear it down, re-apply Terraform, repopulate the Feature Store, and rerun/re-register any model whose artifacts you will need later. Reuse the existing MLflow App ARN after the bucket and role are recreated; do not create a second App.
+
+## Solution snippets and starter functions need clearer replacement boundaries
+
+**Finding (2026-10-10):** The starter's `evaluate_model(model, X_val, y_val, baseline_proba)` already implements aggregate evaluation and matches the official starter kit. Solution Notes Step 2.4 instead supplies a replacement implementation for the separate `evaluate_slices` stub. Its signature changes from the starter's `evaluate_slices(model, X_val, y_val, slice_column)` to `evaluate_slices(model, X_val, y_val, tiers, min_class_count=20, n_boot=1000, seed=42)`, and its `main()` call uses `tier_val`.
+
+The nearby wording—“Call it from `main()` after `evaluate_model`”—can be read as an instruction to change `evaluate_model` or its call. It means: keep the aggregate evaluation, then add the slice-evaluation call after it.
+
+**Suggested revision:** Label each code block as either **Replace the entire starter function** or **Add immediately after the existing call**. For Step 2.4, explicitly state: “Replace the starter's `evaluate_slices` function, including its signature; leave `evaluate_model` unchanged. Then add `slice_results = evaluate_slices(model, X_val, y_val, tier_val)` immediately after the existing `evaluate_model(...)` call.”
+
+## Reusable command string is bash-specific and fails in zsh
+
+**Finding (2026-10-10):** The Solution Notes define `COMMON="--feature-group-name $FG --artifacts-bucket $BUCKET --mlflow-arn $MLFLOW_APP_ARN"` and later invoke `python models/churn/train.py $COMMON ...`. That is word-split by default in bash, but not in zsh. In zsh, `$COMMON` is passed as one argument, so `argparse` treats all of its text as the value for `--feature-group-name` and then reports the required `--artifacts-bucket` flag as missing.
+
+**Suggested revision:** Mark the command sequence as bash-only, or provide a zsh-safe array form:
+
+```zsh
+COMMON=(--feature-group-name "$FG" --artifacts-bucket "$BUCKET" --mlflow-arn "$MLFLOW_APP_ARN")
+python models/churn/train.py "${COMMON[@]}" --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
+```
+
+Avoid recommending `setopt SH_WORD_SPLIT`; an array preserves argument boundaries without changing shell-wide behavior.
+
+## Older Lab 3 starter defaults exclude current-semester Feature Store records
+
+**Finding (2026-10-10):** An older `churn_training_skeleton.py` sets `--training-start-date 2025-02-01` and `--training-end-date 2026-06-01`. Feature Store `event_time` is when the Lab 2 feature job ran, not the historical feature cutoff. Consequently, a Lab 2 job run in Fall 2026 returns zero Athena rows, even when the Feature Group is correctly populated.
+
+The current starter kit fixes this with defaults of `2026-01-01` through `2027-01-01` and comments explaining why. The Solution Notes describe the new range, but students who downloaded an older kit—or copied only portions of it—do not receive the correction.
+
+**Suggested revision:** Publish the corrected starter kit prominently and add an explicit upgrade callout to the handout:
+
+```bash
+python models/churn/train.py ... \
+  --training-start-date 2026-01-01 \
+  --training-end-date 2027-01-01
+```
+
+Also explain that zero rows in the old date window does not by itself mean that a student must rerun Lab 2.
+
+## Pandas 3 string arrays require `to_numpy()` before `train_test_split`
+
+**Finding (2026-10-10):** The starter/solution split example passes `df[SLICE_COLUMN].values` as the third item to `train_test_split`. With pandas 3, a string column's `.values` is an `ArrowStringArray`, not a NumPy array. scikit-learn then attempts to index it with a NumPy index array and raises `TypeError: only integer scalar arrays can be converted to a scalar index`.
+
+**Suggested revision:** Use an explicit NumPy conversion in the starter and solution code:
+
+```python
+tiers = df[SLICE_COLUMN].to_numpy(dtype=str)
+X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
+    X, y, tiers, test_size=0.30, random_state=42, stratify=y,
+)
+```
+
+This preserves row alignment while working with both older pandas/NumPy-backed strings and pandas 3 Arrow-backed strings.
+
+## Task 1 does not specify durable grading evidence for AWS results
+
+**Finding (2026-10-10):** Task 1 awards points for MLflow runs retrievable with `mlflow.search_runs` and a Model Registry package visible with `PendingManualApproval`, but it does not tell students to save evidence from those AWS services. A TA who grades after teardown or without access to each student's AWS account cannot verify those rubric items from the repository alone. Requiring students to keep infrastructure running during grading would add cost and make grading depend on live account access.
+
+**Suggested revision:** Add a submission checklist asking students to commit a compact `docs/lab3-task1-evidence/` folder containing:
+
+- `evaluation_metrics.json` and `slice_results.json` from the held-out evaluation;
+- `mlflow-search-runs.csv` exported by `mlflow.search_runs` (at least three distinct, meaningful runs with parameters and metrics);
+- `model-package.json` from `aws sagemaker describe-model-package`, showing `PendingManualApproval` and evaluation metadata;
+- the exact training command/configuration and the XGBoost version.
+
+State that these files are grading evidence and that the grader does not need students' infrastructure to remain running. Keep the normal requirements to actually use Athena, the MLflow App, and Model Registry; saved evidence supplements the code and results rather than replacing them.
+
+## Task 1's 5–10 minute grading path should be explicit
+
+**Finding (2026-10-10):** Task 1 has six rubric rows totaling 35 points, but no suggested order or evidence location. A grader can spend time re-reading a long training script or trying to access live AWS resources, even though most criteria can be checked from a few committed files.
+
+**Suggested revision:** Add a short grader-facing evidence map (or publish one with the rubric): inspect the Athena query in the training script; compare the held-out metrics and paired-bootstrap interval in the design document and evaluation JSON; use the exported MLflow search-results CSV for the three-run criterion; use the saved model-package description for approval status and metadata; and use the tier table in the design document or slice-results JSON for per-tier AUC, recall, sample counts, and discussion. Clarify that graders should not require an active Feature Store, MLflow App, or Registry session when the submitted evidence and source code are present.

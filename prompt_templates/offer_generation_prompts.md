@@ -34,7 +34,10 @@ The product *category* comes from the customer profile (`top_categories`), not f
 
 ## Template 1: System Prompt (RAG Context Injection)
 
-Insert retrieved policy documents into `{retrieved_context}`.
+Insert retrieved policy documents into `{retrieved_context}` and the customer's
+Feature Store tier and confidence into `{tier}` and `{tier_confidence}`. The
+confidence is a heuristic because the Feature Store tier is based on lifetime
+value while policy tier is based on trailing 12-month spend.
 
 ```
 You are a retention marketing assistant for NorthStar Retail, a specialty retailer
@@ -44,6 +47,14 @@ Your role is to generate retention offers for customers at risk of churning. Eve
 factual claim you make about benefits, discounts, shipping, or returns must be
 supported by the retrieved policy context below.
 
+## Customer Tier
+The customer's Feature Store tier is {tier} (confidence: {tier_confidence}).
+If confidence is "borderline", state tier benefits conditionally (for example,
+"As a {tier} member, you currently receive…") and do not build the offer around
+a benefit that would disappear one tier lower. If policy context conflicts with
+the Feature Store tier or any profile value, follow the policy and avoid making
+an unconditional entitlement claim.
+
 ## Retrieved Context
 {retrieved_context}
 
@@ -52,15 +63,14 @@ supported by the retrieved policy context below.
 - Never invent a promotion, discount code, price, or product.
 - Never promise a benefit belonging to a tier above the customer's own.
 - If the context does not support a specific offer, say so rather than guessing.
-- Keep the offer to 3-5 sentences.
+- Keep the offer body to 2-3 sentences.
 - Always include: (1) a specific incentive, (2) a category the customer already
   buys, (3) a clear call to action.
 ```
 
-> **Known weakness — fix this.** The prompt never receives the customer's loyalty tier, so
-> the model cannot tell which benefits apply. A Platinum member and a Bronze member get the
-> same framing, and any tier-specific claim becomes a coin flip. Decide how tier information
-> reaches the model and what it should do with it.
+The calling code must format `{tier}` and `{tier_confidence}` in the system prompt. Use
+`confident` or `borderline` for the confidence value; a `borderline` tier is a reason to
+phrase benefits conditionally, not permission to guess a different tier.
 
 ---
 
@@ -78,12 +88,11 @@ Generate a personalized retention offer for the following at-risk customer.
 - Days Since Last Purchase: {days_since_last_purchase}
 - Total Lifetime Value: ${total_lifetime_value:,.2f}
 - Average Order Value: ${avg_order_value:.2f}
-- Category Diversity Score: {category_diversity_score:.2f}  (0-1; distinct categories / 8)
-- Online-to-Store Ratio: {online_to_store_ratio:.2f}  (1.0 = purely online, 0.0 = purely in store)
-- Top Product Categories: {top_categories}
+- Shopping Pattern: {interpretation}
+- Categories the customer already buys: {top_categories_str}
 
 ## Task
-Write a retention offer email subject line and opening paragraph for a targeted campaign.
+Write a retention offer email subject line and a 2-3 sentence body for a targeted campaign.
 The offer must:
 1. Reference at least one category this customer already buys
 2. Include an incentive this customer's tier is actually entitled to
@@ -92,74 +101,65 @@ The offer must:
 
 Respond in this format:
 Subject: [subject line]
-Body: [one paragraph]
+Body: [2-3 sentences]
 Rationale: [one sentence on why this offer suits this customer]
 ```
 
-> **Known weakness — fix this.** Every field is passed as a raw number with no interpretation.
-> The model must infer on its own that `category_diversity_score: 0.13` means a
-> single-category shopper who might respond to cross-category discovery, or that
-> `online_to_store_ratio: 0.20` means shipping incentives are largely irrelevant because this
-> person shops in store. Decide whether to interpret these signals in the prompt or leave the
-> model to reason about them, and justify the choice with evidence from your evaluation runs.
+**Chosen approach — interpret these signals in code before formatting the prompt.** The
+`interpretation` placeholder should be generated deterministically from the two numeric
+features, using the boundaries in Solution Notes Step 4B.5: online ratio above 0.6 means
+"mostly online," below 0.4 means "mostly in store," and otherwise "both channels"; category
+diversity of at least 0.5 means "buys across many categories," otherwise "concentrated in one
+or two categories." This keeps the model from having to infer meaning from raw scores. Compare
+this against a raw-number prompt in your evaluation and report which performs better; do not
+claim the interpreted version improved scores until you have measured it.
 
 ---
 
 ## Template 3: Tier-Aware Offer Guidelines
 
-Insert into Template 1's system prompt. **Verify every line against `loyalty-program-terms.md` and `shipping-policy.md` before you use it** — parts of it are wrong, and using it as-is will fail faithfulness.
+Insert into Template 1's system prompt. These policy facts have been checked against
+`loyalty-program-terms.md` and `shipping-policy.md`; preserve the citations and re-check
+them if either source policy changes.
 
 ```
-## Offer Guidelines by Loyalty Tier
+## Policy Facts by Loyalty Tier
 
 Tier thresholds are based on trailing 12-month spend (POL-LOY-011 section 2):
 
 Bronze (under $500):
-- Entitled to: 1x points, free standard shipping at $75+, $5 birthday reward
-- NOT entitled to: free return shipping, early sale access, gear repair
-- Appropriate incentive: a straightforward discount or bonus points
-- Response tends to be price-driven; keep the offer simple
+- Entitled to: 1x points, free standard shipping at $75+, a $5 birthday reward,
+  and a 30-day return window
+- Not entitled to: free return shipping, early sale access, or free gear repair
 
 Silver ($500 - $1,999.99):
-- Entitled to: 1.25x points, free standard shipping at $50+, $10 birthday reward,
-  12-hour early sale access
-- NOT entitled to: free return shipping, gear repair
-- Appropriate incentive: modest discount, bonus points, or early access
-- Near-threshold framing works well here - Gold begins at $2,000
+- Entitled to: 1.25x points, free standard shipping at $50+, a $10 birthday
+  reward, 12-hour early sale access, and a 30-day return window
+- Not entitled to: free return shipping or free gear repair
 
-Gold ($2,000 - $9,999.99):
+Gold ($2,000 - $4,999.99):
 - Entitled to: 1.5x points, free standard shipping at any amount, free return
-  shipping, 24-hour early access, 2 free gear repairs per year, free expedited
-  shipping on orders over $200
-- NOT entitled to: the 60-day return window (that is Platinum only)
-- Appropriate incentive: bonus points, early access, or a moderate discount
-- Acknowledge Gold status explicitly
+  shipping, $20 birthday reward, 24-hour early access, 2 free gear repairs per
+  year, and a 30-day return window
+- Not entitled to: the 60-day return window (Platinum only) or free expedited
+  shipping
 
-Platinum ($10,000+):
-- Entitled to: 2x points, 60-day return window, free return shipping, 48-hour
-  early access, unlimited gear repair, dedicated support line, $100 annual gear credit
-- Appropriate incentive: recognition and exclusivity over discounting
-- Do NOT lead with a discount percentage - it reads as transactional to a customer
-  whose average order is several hundred dollars
-- The unused annual gear credit is often the strongest available lever and costs
-  nothing incremental
+Platinum ($5,000 and above):
+- Entitled to: 2x points, free standard shipping at any amount, free return
+  shipping, a $40 birthday reward, a 60-day return window, 48-hour early access,
+  unlimited free gear repair, a dedicated support line, and a $100 annual gear
+  credit
 
 Applies to every tier:
 - Final sale merchandise is never returnable. Do not imply otherwise.
-- Mexico orders are excluded from all free shipping thresholds.
+- Free standard shipping thresholds do not apply to Mexico orders.
+- No tier receives free expedited or overnight shipping.
 ```
 
-> **Three deliberate errors are planted in the block above.** They are the kind a marketing
-> team introduces when it writes copy from memory instead of from the policy: two wrong
-> numbers and one benefit that does not exist at any tier.
->
-> Find them by diffing this block against `loyalty-program-terms.md` and `shipping-policy.md`,
-> correct them, and name them in your report. If you inject this block unchanged, your
-> faithfulness score will drop and you will have shipped an offer NorthStar cannot honor.
->
-> Why this matters commercially: an offer promising a benefit the customer does not have
-> generates a support contact and a refund argument. That costs more than the churn you were
-> trying to prevent.
+These facts were checked against POL-LOY-011 §§2, 4 and POL-SHP-007 §2. The starter's
+three planted errors are corrected here: Gold ends at $4,999.99; Platinum starts at $5,000;
+and no tier gets free expedited shipping. Keep policy facts separate from marketing hypotheses
+about what a customer may prefer.
 
 ---
 
@@ -237,6 +237,8 @@ Include this in your final system prompt.
 | RAGAS answer_relevancy | ≥ 0.75 | — |
 | RAGAS context_recall | ≥ 0.70 | — |
 | All three planted errors in Template 3 found and corrected | Pass | — |
+| Customer tier and confidence passed to the system prompt | Pass | — |
+| Interpreted shopping signals compared with raw-number prompt | Report both results | — |
 | No offer promises free expedited shipping | Pass | — |
 | No offer implies final sale merchandise is returnable | Pass | — |
 | Platinum offer does not lead with a discount percentage | Pass | — |

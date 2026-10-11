@@ -1,0 +1,60 @@
+{
+    "ModelPackageGroupName": "northstar-churn-models",
+    "ModelPackageVersion": 3,
+    "ModelPackageRegistrationType": "Registered",
+    "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/3",
+    "ModelPackageDescription": "XGBoost churn, AUC 0.7835, lift 0.0603 CI [0.0407, 0.0798]",
+    "CreationTime": 1791693071.525,
+    "InferenceSpecification": {
+        "Containers": [
+            {
+                "Image": "683313688378.dkr.ecr.us-east-1.amazonaws.com/sagemaker-xgboost:1.7-1",
+                "ImageDigest": "sha256:b4f13edb198529c460692015797fa1ca6a8ff1ed64a149297174d922121b8fc4",
+                "ModelDataUrl": "s3://northstar-dev-data-480747229391/artifacts/models/churn/20261011T043109/model.tar.gz",
+                "ModelDataETag": "f2949cad1e75a3d8636b469bb9bd8f28",
+                "IsCheckpoint": false
+            }
+        ],
+        "SupportedTransformInstanceTypes": [
+            "ml.m5.large"
+        ],
+        "SupportedRealtimeInferenceInstanceTypes": [
+            "ml.m5.large"
+        ],
+        "SupportedContentTypes": [
+            "text/csv"
+        ],
+        "SupportedResponseMIMETypes": [
+            "text/csv"
+        ]
+    },
+    "ModelPackageStatus": "Completed",
+    "ModelPackageStatusDetails": {
+        "ValidationStatuses": [],
+        "ImageScanStatuses": []
+    },
+    "CertifyForMarketplace": false,
+    "ModelApprovalStatus": "PendingManualApproval",
+    "CreatedBy": {
+        "IamIdentity": {
+            "Arn": "arn:aws:iam::480747229391:user/cs401r-lab",
+            "PrincipalId": "AIDAW73WESDHXFEBLKUCL"
+        }
+    },
+    "CustomerMetadataProperties": {
+        "auc_roc": "0.7835",
+        "auc_vs_baseline": "0.0603",
+        "baseline_auc": "0.7232",
+        "eval_timestamp": "2026-10-11T04:31:07.543918",
+        "lift_ci_high": "0.0798",
+        "lift_ci_low": "0.0407",
+        "n_val_samples": "3000",
+        "positive_rate_val": "0.22",
+        "precision_top10": "0.71",
+        "recall_top10": "0.3227",
+        "run_name": "d6-eta0.03",
+        "slice_worst_auc": "0.7204",
+        "slice_worst_tier": "Silver",
+        "xgboost_version": "3.4.1"
+    }
+}
