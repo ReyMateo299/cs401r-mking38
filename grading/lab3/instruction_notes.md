@@ -58,3 +58,40 @@ scripts/teardown-lab3.sh                    → scripts/teardown-lab3.sh
 ```
 
 State explicitly that students should create missing directories, preserve existing files, and commit the added starter files to their existing repository.
+
+## Package pins are explained in the solution notes, not in the main setup path
+
+**Finding (2026-10-09):** The main handout explicitly documents only the Track B pin `langchain-community<0.4`, including its RAGAS import failure. It does not give a complete Python-environment setup command or explain the Task 1 constraint `sagemaker>=2.200.0,<3.0.0`. The solution notes do both.
+
+`sagemaker<3.0.0` is required because SDK 3.x removed `sagemaker.feature_store`; imports of the base package can succeed while the Feature Store import used by Task 1 fails. `sagemaker-mlflow` is also required: it supplies the SigV4 authentication plugin for an MLflow App ARN. The main handout separately warns that old AWS CLI and boto3/botocore versions may not recognize `create-mlflow-app`, but does not offer a consolidated preflight.
+
+**Suggested revision:** Add a “Python environment and version pins” prerequisite before Task 1 with the tested install command, an import smoke test, and one-line explanations for the two pins:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install "sagemaker>=2.200.0,<3.0.0" xgboost scikit-learn pandas numpy boto3 \
+            mlflow sagemaker-mlflow matplotlib
+# Track B only:
+pip install faiss-cpu ragas datasets "langchain-community<0.4" langchain-aws
+python -c "from sagemaker.feature_store.feature_group import FeatureGroup; import mlflow, sagemaker_mlflow; print('imports OK')"
+```
+
+Students should preserve these constraints in a committed requirements file so their lab is reproducible.
+
+## Main Lab 3 instructions should warn that a Lab 2 teardown destroys its training data
+
+**Finding (2026-10-10):** `scripts/teardown-lab2.sh` deliberately deletes all versions and delete markers in the data bucket before it runs `terraform destroy`. Terraform then deletes the bucket (its `force_destroy` setting permits this) and the Feature Group. Reapplying Terraform recreates empty infrastructure; it does not recreate the Feature Store records or its offline-store Parquet data.
+
+The Lab 3 solution notes correctly say that, if the Feature Group is gone, students must re-apply Lab 2 and re-run the feature pipeline. The main Lab 3 handout does not make this consequence clear, which can lead students to expect that restoring `processed/` Parquet alone solves Task 1.
+
+**Suggested revision:** Add this warning alongside the Lab 3 infrastructure prerequisite:
+
+> Do not run the Lab 2 teardown between Lab 3 work sessions unless you intend to rebuild the data. It deletes the data bucket and Feature Group. After a teardown, `terraform apply` restores only empty resources; re-run the feature-engineering job to repopulate the Feature Group and its Athena-queryable offline store. Restoring a saved `processed/` snapshot can avoid rerunning the transform job, but it still does **not** restore Feature Store records—you must rerun feature engineering.
+
+## Lab 2 teardown preserves MLflow run metadata but deletes its artifacts
+
+**Finding (2026-10-10):** The MLflow App itself is not managed by the Terraform stack, and its backend metadata (run IDs, parameters, metrics, and timestamps) is held by SageMaker. Therefore, a Lab 2 `terraform destroy` does not delete the MLflow App or its run listings. However, the app's artifact store is under the Lab 2 data bucket (`artifacts/mlflow/`), and `teardown-lab2.sh` empties and deletes that bucket. Logged plots, model files, and other MLflow artifacts are permanently lost; Model Registry packages will retain metadata but their referenced S3 model artifacts no longer exist.
+
+**Suggested revision:** Amend the Lab 3 teardown guidance to distinguish the two scopes:
+
+> `teardown-lab3.sh` is safe after Task 1: it removes billable endpoints and active jobs while retaining the MLflow App, run history, and registry records. Do not run `teardown-lab2.sh` until you are prepared to lose the Feature Store data and S3-backed artifacts. If you do tear it down, re-apply Terraform, repopulate the Feature Store, and rerun/re-register any model whose artifacts you will need later. Reuse the existing MLflow App ARN after the bucket and role are recreated; do not create a second App.
