@@ -1,2 +1,10 @@
 PASS
 PASS
+
+source .env
+COMMON="--feature-group-name $FG --artifacts-bucket $BUCKET --mlflow-arn $MLFLOW_APP_ARN"
+
+python models/churn/train.py "${COMMON[@]}" --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
+python models/churn/train.py "${COMMON[@]}" --max-depth 6 --eta 0.1 --num-round 300 --run-name d6-eta0.1
+python models/churn/train.py "${COMMON[@]}" --max-depth 6 --eta 0.03 --num-round 600 --run-name d6-eta0.03
+python models/churn/train.py "${COMMON[@]}" --max-depth 6 --eta 0.1 --num-round 300 --include-risk-score --run-name d6-eta0.1-riskscore
