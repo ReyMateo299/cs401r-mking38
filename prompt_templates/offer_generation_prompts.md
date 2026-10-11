@@ -82,7 +82,6 @@ Fill every `{placeholder}` from the customer's Feature Store record before sendi
 Generate a personalized retention offer for the following at-risk customer.
 
 ## Customer Profile
-- Customer ID: {customer_id}
 - Loyalty Tier: {loyalty_tier}
 - Churn Probability: {churn_probability:.0%}
 - Days Since Last Purchase: {days_since_last_purchase}
@@ -90,6 +89,9 @@ Generate a personalized retention offer for the following at-risk customer.
 - Average Order Value: ${avg_order_value:.2f}
 - Shopping Pattern: {interpretation}
 - Categories the customer already buys: {top_categories_str}
+
+## Campaign Request
+{question}
 
 ## Task
 Write a retention offer email subject line and a 2-3 sentence body for a targeted campaign.
@@ -188,15 +190,17 @@ query = (
 **Option C — Hybrid with metadata filter.** Retrieve both, weighted toward the customer's situation.
 
 ```python
-filters = {"doc_id": {"$in": ["POL-LOY-011", "POL-SHP-007"]}}
+policy_doc_ids = {"POL-LOY-011", "POL-SHP-007", "POL-RET-004"}
 query = (
-    f"tier {customer['loyalty_tier']} entitlements and shipping thresholds "
-    f"for a customer who shops "
-    f"{'online' if customer['online_to_store_ratio'] > 0.5 else 'in store'}"
+    f"{customer['loyalty_tier']} tier benefits and shipping thresholds for a "
+    f"customer who shops mostly "
+    f"{'online' if customer['online_to_store_ratio'] > 0.5 else 'in store'}; "
+    "final sale exclusions, offer validity, single use, combinability, "
+    "no free expedited shipping"
 )
 ```
 
-**Lab task:** Implement all three, measure context recall for each with the RAGAS harness, and report which performs best and why. Consider whether one query can serve both the entitlement and constraint needs, or whether two retrieval passes score better than one.
+With FAISS, apply `policy_doc_ids` as a metadata filter while selecting the top results. **Lab task:** Implement all three strategies, measure context recall for each with the RAGAS harness, and report which performs best and why. The default implementation in `rag/index.py` uses two passes (Option A plus Option B) and merges their results; compare that final choice with A, B, and C.
 
 ---
 
