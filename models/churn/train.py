@@ -195,7 +195,7 @@ def load_features_from_feature_store(feature_group_name: str,
             will not run a query without an output location, so this has to be
             threaded in from --artifacts-bucket rather than assumed.
 
-    TODO: Implement this function to pull training data from your Lab 2 Feature Store.
+    This function pulls training data from the Lab 2 Feature Store.
     Reference: https://docs.aws.amazon.com/sagemaker/latest/dg/feature-store-use-with-studio.html
     """
     if not SAGEMAKER_AVAILABLE:
@@ -211,8 +211,6 @@ def load_features_from_feature_store(feature_group_name: str,
     session = Session()
     feature_group = FeatureGroup(name=feature_group_name, sagemaker_session=session)
 
-    # TODO: Execute this query and return the result as a DataFrame.
-    #
     # Two things in the query below are easy to get wrong, so read them:
     #
     # 1. event_time is Fractional - Unix epoch SECONDS, not an ISO string.
@@ -288,12 +286,23 @@ def load_features_from_feature_store(feature_group_name: str,
         ORDER BY customer_id
     """
 
-    # query.run(query_string=query_string,
-    #           output_location=f"s3://{artifacts_bucket}/artifacts/athena-results/")
-    # query.wait()
-    # df = query.as_dataframe()
-    # return df
-    raise NotImplementedError("TODO: Implement Feature Store query")
+    query.run(query_string=query_string,
+              output_location=f"s3://{artifacts_bucket}/artifacts/athena-results/")
+    query.wait()
+    df = query.as_dataframe()
+
+    # Fail loudly on the two silent failure modes rather than training on garbage.
+    if df.empty:
+        raise RuntimeError(
+            f"Athena returned 0 rows for event_time in [{start_date}, {end_date}]. "
+            "event_time is the wall-clock time your Lab 2 job ran, not the feature "
+            "cutoff T. Widen the window to include that date."
+        )
+    if df["customer_id"].duplicated().any():
+        raise RuntimeError("Duplicate customer_id rows after dedup - check the ROW_NUMBER clause.")
+
+    print(f"Loaded {len(df):,} customers from {query.table_name}")
+    return df
 
 
 def load_features_local(path: str) -> pd.DataFrame:
@@ -737,6 +746,11 @@ def main():
             args.artifacts_bucket,
         )
 
+    # 1b. Drop rows with no label BEFORE extracting X, so df, X, y and tiers
+    #     all have the same row order. preprocess_features() drops them too,
+    #     but doing it there would misalign df[SLICE_COLUMN].
+    df = df.dropna(subset=[LABEL_COLUMN]).reset_index(drop=True)
+
     # 2. Preprocess
     X, y = preprocess_features(df)
 
@@ -752,8 +766,9 @@ def main():
     #   X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
     #       X, y, df[SLICE_COLUMN], test_size=0.30, random_state=42, stratify=y)
     # Re-deriving the tiers afterwards from df will NOT line up.
-    X_train, X_val, y_train, y_val = train_test_split(
-        X, y, test_size=0.30, random_state=42, stratify=y
+    X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
+        X, y, df[SLICE_COLUMN].values,
+        test_size=0.30, random_state=42, stratify=y,
     )
     print(f"\nTrain: {len(X_train):,} | Validation: {len(X_val):,}")
 
