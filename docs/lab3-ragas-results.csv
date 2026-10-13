@@ -1,0 +1,2 @@
+strategy,signal_mode,faithfulness,answer_relevancy,context_recall,faithfulness_valid_n,answer_relevancy_valid_n,context_recall_valid_n,case_count
+two_pass,interpreted,0.26000000000000006,0.35156419440636516,0.62,5,5,5,5

@@ -42,6 +42,14 @@ The model can be trained locally; a SageMaker Training Job is optional. AWS CLI/
 
 Also link to the starter-kit location at that point, rather than leaving its discovery to the solution notes.
 
+## The updated Track A evidence instructions resolve the Athena provenance ambiguity
+
+**Finding (updated 2026-10-13):** The earlier handout said there should be “no CSV path in the data-loading code,” which conflicted with the development-only `--local-data-path` branch in `models/churn/train.py`. The revised Lab 3 guide (added Oct 12) now says CSV is acceptable during development but the graded run must use Athena. It names the required proof: `docs/lab3-evidence/train-final.log` must include an Athena `QueryExecutionId`, and `athena-query.json` must show the actual SQL, `SUCCEEDED`, and bytes scanned. It also explicitly says missing new evidence files do not cost students points in Fall 2026; when repository evidence is absent, the TA should request a short screen-share instead. This supersedes the earlier source-code-only grading decision.
+
+**TA grading procedure:** Check the final-run log and Athena export when present. If they are missing, follow the current guide's Fall 2026 exception and ask the student to screen-share Athena query history rather than retroactively deducting points. Do not mistake an earlier metrics file or an available Athena code path for proof of which loader the graded run used.
+
+**Resolution:** The handout now distinguishes the development CSV path from the graded Athena run, specifies the evidence filenames, and provides a transition policy for this term.
+
 ## The main handout names the starter kit but not its destination layout
 
 **Finding (2026-10-09):** The `Starter Kit (Canvas: Lab 3)` section correctly tells students to download the kit from Canvas (or the public `cs401r-lab3-template` repository) and add it to their existing Lab 1 repository. However, it does not say where each file belongs. The exact layout appears only in Solution Notes Phase 0.5.
@@ -166,3 +174,79 @@ State that these files are grading evidence and that the grader does not need st
 **Finding (2026-10-10):** Task 1 has six rubric rows totaling 35 points, but no suggested order or evidence location. A grader can spend time re-reading a long training script or trying to access live AWS resources, even though most criteria can be checked from a few committed files.
 
 **Suggested revision:** Add a short grader-facing evidence map (or publish one with the rubric): inspect the Athena query in the training script; compare the held-out metrics and paired-bootstrap interval in the design document and evaluation JSON; use the exported MLflow search-results CSV for the three-run criterion; use the saved model-package description for approval status and metadata; and use the tier table in the design document or slice-results JSON for per-tier AUC, recall, sample counts, and discussion. Clarify that graders should not require an active Feature Store, MLflow App, or Registry session when the submitted evidence and source code are present.
+
+## Track B solution notes add experiments that the student handout does not specify
+
+**Finding (2026-10-10):** The student handout asks students to implement and evaluate a Track B RAG offer generator against three RAGAS targets. The Solution Notes add two explicit comparisons that the handout does not mention: measure retrieval Options A, B, and C separately against the final two-pass retriever, and compare interpreted shopping signals with a raw-number prompt. The prompt-template file also presents these comparisons as reportable requirements. Students following only the handout can therefore meet its stated evaluation directions while missing expectations described elsewhere.
+
+**Suggested revision:** In the Track B evaluation section of the handout, either list these two comparisons as required deliverables (including that the final two-pass design is compared with A/B/C), or label them as optional experiments in both the Solution Notes and prompt-template checklist. State that the retrieval comparison should report context recall for each strategy and the prompt ablation should report the same metrics for both signal modes.
+
+## Track B rubric names a demo notebook but the solution demonstrates a Python script
+
+**Finding (2026-10-10):** The student handout's System runs end-to-end rubric row says the TA executes the “demo notebook.” The Solution Notes' Track B implementation and evaluation path instead uses `rag/offer.py` and `rag/evaluate.py`; it does not identify or provide a Track B demo notebook. This leaves students unsure which runnable artifact the TA expects and may cause graders to apply a notebook requirement that the solution does not satisfy.
+
+**Suggested revision:** Change the rubric wording to “TA can run the documented Track B entry point (notebook or Python script) and generate a valid offer,” and name the expected command and required output. If a notebook is truly required, add its path and instructions to the Solution Notes and starter kit.
+
+## Clarify the fifth offer example and the shape of each output
+
+**Finding (2026-10-10):** The handout requires five input/output pairs, while its supplied harness contains four built-in Track B cases. The Solution Notes correctly call out the need to add a fifth case, but students may mistake the four-row harness output for the complete deliverable. There is also a small output-shape ambiguity: the handout calls for a 2–3 sentence offer, while the revised prompt asks for a subject, a 2–3 sentence body, and a rationale.
+
+**Suggested revision:** State directly in the handout that students must add one local test case without editing the shared harness and submit five customer inputs with their generated offers. Define that the *body* must be 2–3 sentences; a subject line and one-sentence rationale may be included outside the body.
+
+## Solution Notes ask students to report token counts without making that a handout criterion
+
+**Finding (2026-10-10):** Step 4B.5 asks students to include generation-model token counts when justifying their choice. The student handout asks students to justify the generation model but does not request token counts in Task 2 or its rubric. This is an additional documentation expectation that may be graded inconsistently.
+
+**Suggested revision:** Either add input/output token counts to the Track B design-document checklist, or mark them as an optional cost-analysis detail in the Solution Notes. Specify whether the counts should cover one offer or the full evaluation run.
+
+## The output requirements should separate offer expiry from the return window
+
+**Finding (2026-10-10):** The policy allows a retention offer to be redeemed within 45 days of issue, but Gold members still have only 30 calendar days to return eligible merchandise. An offer that says “use anytime in the next 45 days” immediately before inviting the customer to ship items back can sound like a 45-day return window. The prompt template also requires a call to action, while the student handout does not state that requirement explicitly.
+
+**Suggested revision:** Add a direct constraint to the student-facing Track B instructions and prompt: “The retention offer's 45-day validity is only the deadline to redeem the offer; it does not change the customer's return window. State return eligibility and deadlines separately, and include a clear call to action.” Example wording: “Redeem this offer within 45 days of issue. Eligible Gold returns remain subject to the standard 30-day return window.”
+
+## The starter prompt leaves room for invented campaign terms
+
+**Finding (2026-10-10):** In a completed five-case run, the generator invented a 10-point bonus, a `$50` purchase threshold, and a `$5 off apparel` birthday promotion. The prompt says not to invent promotions, but also asks for a “specific incentive” and does not explicitly forbid unprovided bonus points, minimum spends, customer reward balances, or unused credits. The generated rationale then repeated unsupported claims such as an accumulated rewards balance. A borderline Silver case also implied the customer was `$15` from Gold based on lifetime value, although policy uses trailing-12-month spend.
+
+**Suggested revision:** Expand the prompt checklist with explicit examples: do not invent bonus points, coupons, purchase minimums, reward balances, birthdays, unused credits, or offer dates; do not call an existing tier benefit exclusive; and do not infer distance to a tier threshold from lifetime value. Require the system to use only a supplied campaign incentive or describe an existing tier benefit as an existing benefit. Keep internal rationale out of the customer-facing output or require every rationale claim to be grounded in supplied profile data and policy.
+
+## The RAGAS judge can truncate outputs and produce incomplete means
+
+**Finding (2026-10-10):** The supplied five-case comparison emitted multiple `LLMDidNotFinishException` warnings. The final two-pass faithfulness results had valid scores for only two of five cases; the displayed mean of `0.080` silently excluded three `NaN` values. This makes a metric average look complete when the judge actually failed on most examples.
+
+**Suggested revision:** Configure the Bedrock judge with an explicit adequate output-token limit, and have the evaluator report the number of valid scores per metric (for example, `2/5`). Treat any metric with missing scores as incomplete and rerun it before using the mean. Keep offer generation and judge token limits separate, since the exception comes from the RAGAS judge.
+
+## The two-pass query should explicitly retrieve standard return-window rules
+
+**Finding (2026-10-10):** The retrieved two-pass contexts included the tier-benefit table, retention-offer validity, and final-sale exclusions, but the observed context set did not include POL-RET-004 §1, which defines the standard 30-day return window. The constraint query named final sale and offer validity but omitted the exact return-window terms. The five-case context-recall mean was `0.62`, below the `0.70` target.
+
+**Suggested revision:** Include terms for “30 calendar days from delivery or purchase,” “Platinum 60 days,” and the fact that offer validity does not extend the return window in the constraint query. Ask students to inspect the retrieved source sections when context recall misses the rubric's tier/window facts, then retune `k` or the query before concluding that re-ranking is unnecessary.
+
+## Track C harness passes scenarios without checking the reply's policy correctness
+
+**Finding (2026-10-11):** The student handout says that conceding or even hinting at an exception for the final-sale item in TC-005 is a failure. The shared `LocalAgentEvaluator`, however, uses `expected_behavior` only as descriptive text: it checks required/forbidden tool names and whether escalation was detected. `detect_escalation()` treats `escalate_to_human` or certain phrases as sufficient, but does not check whether the response cites POL-RET-004 §4, clearly declines the return, or implies that an exception may be granted. A real run passed TC-005 even though its reply omitted the policy citation and told the customer a human could “explore other options.” A subsequent run after adding a stricter prompt still ended with the final post-tool reply saying a human could “discuss what options may be available.” This shows that the final customer-facing turn needs a check of its own; an earlier compliant message before a tool call is not enough. Conversely, the same broad phrase detector marked TC-006 as escalated when the reply only listed escalation as a general capability and made no escalation tool call. The local evaluator now bases escalation on the actual tool call; its previous CSV result was corrected offline, without rerunning the model.
+
+**Suggested revision:** Extend the Track C evaluation criteria with explicit response checks for TC-003 through TC-005, or label those rows as requiring TA review. For TC-005, inspect the final reply after all tool results and require a citation to POL-RET-004 §4, an unambiguous statement that final-sale merchandise is not returnable at any tier, a call to `escalate_to_human`, and no promise or implication that the return will be approved. For the local ReAct evaluator, count escalation only when the handoff tool is called; a generic mention in the reply is not an executed handoff. Keep `expected_behavior` as grader guidance only if the harness does not actually evaluate it; make that limitation visible in the output and rubric.
+
+## Track C tool list does not identify escalation as a tool
+
+**Finding (2026-10-11):** The main handout lists `lookup_order` and `query_policy` as required tools and `initiate_return` / `apply_loyalty_credit` as optional, while separately requiring an explicit escalation path. The Solution Notes implement `escalate_to_human` as a tool and explain why a sentence promising escalation is not an operational handoff. Students can satisfy the literal tool list without implementing the solution's explicit handoff behavior, and the harness's prose-based fallback makes this ambiguity harder to notice.
+
+**Suggested revision:** List `escalate_to_human(reason, summary)` as a required tool alongside the minimum tool count, and state that an escalation must be recorded as a tool call in scenarios requiring handoff. If prose-only escalation is intentionally acceptable, document how the student must demonstrate that the handoff actually occurs.
+
+## Professor withdrew the Track B RAGAS score thresholds for Fall 2026
+
+**Finding (2026-10-13, based on the professor's update):** The earlier handout and local harness present faithfulness 0.80, answer relevancy 0.75, and context recall 0.70 as targets, and the harness prints PASS/FAIL against them. The professor says these targets are no longer graded because the harness ground truths include claims absent from the corpus and answer relevancy does not fit offer generation. The revised 15-point evidence is: five points for all four cases at least twice with per-case scores, mean, range, and judge model; six points for explaining each metric's limits with case/claim examples; four points for one measured before/after pipeline change. The supplied two-pass five-case comparison has valid scores but fell well below the old thresholds; that is not a grading failure under the revision.
+
+**Suggested revision:** Replace every student-facing pass threshold and below-target failure warning with the revised three-part rubric. Clarify whether the existing five-example deliverable remains separate from the four supplied evaluation cases. Update the harness to stop printing graded PASS/FAIL labels, save per-case scores across at least two runs, report means/ranges and judge model, and allow the customer profile to be included as a distinct judge context. Keep failed judge calls (`NaN`) marked as missing and rerun them; do not coerce them to zero. The working-repository tips and prompt checklist now reflect this change; instructor files remain untouched.
+
+## Track B needs a precise rule for policy-duration language versus a concrete offer deadline
+
+**Finding (2026-10-13; verified against POL-LOY-011 §5.1 and the saved local examples):** The policy says a retention offer is valid for 45 days *from issue*, while the template correctly says not to invent expiration dates. The distinction is not made explicit. Saved raw offers consequently use language such as “within the next 45 days” even though the supplied profile has no issue timestamp, and an older capture adds “any of our 400 locations” even when that operational fact does not personalize the offer. The 45-day rule and 400-location fact exist in the corpus, but neither is automatically an individualized claim.
+
+**Why it confuses or blocks students:** A student can reasonably read “no expiration dates” as forbidding the documented 45-day policy, or can use the policy as license to invent a calendar deadline. This makes it hard to distinguish a supported policy statement from an unsupported assertion about this customer's offer.
+
+**Belongs in:** Both instructor notes and student tips.
+
+**Suggested revision:** Add this explicit guardrail to the handout and starter prompt: “You may state the policy duration only as ‘valid for 45 days from issue’ when the retention-offer policy chunk is retrieved. Do not state a calendar expiry or ‘next 45 days’ unless an offer issue date is supplied. Do not use general operational facts, such as store count, as personalization unless the request needs them and the supporting chunk was retrieved.” Include one compliant and one noncompliant example.

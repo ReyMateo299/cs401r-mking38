@@ -1,0 +1,5 @@
+tier,n,positives,auc,recall,too_small_to_conclude,weakest_tier,flag_weak_recall
+Bronze,1071,361,0.7536,0.4377,False,False,False
+Silver,1139,226,0.7204,0.2035,False,True,True
+Gold,483,52,0.7433,0.1346,False,False,True
+Platinum,307,21,0.8856,0.0952,False,False,True

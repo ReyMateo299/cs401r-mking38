@@ -53,8 +53,9 @@ def _retrieval_passes(customer, strategy):
         "birthday reward early access gear repair gear credit"
     )
     constraint_query = (
-        "final sale non-returnable retention offer validity single use combinability "
-        "no free expedited shipping any tier"
+        "return window 30 calendar days from delivery or purchase Platinum 60 days "
+        "final sale never returnable retention offer valid 45 days from issue does not "
+        "extend returns policy single use combinability no free expedited shipping"
     )
 
     if strategy in ("option_a", "A"):

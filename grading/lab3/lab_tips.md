@@ -185,13 +185,73 @@ X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
 
 Keep the tiers in the same `train_test_split` call as `X` and `y`; this is what preserves their row-by-row alignment for slice evaluation.
 
-## Save Task 1 grading evidence before tearing down AWS resources
+## Save the updated Lab 3 evidence bundle before teardown
 
-Your grader should be able to review Task 1 without starting your infrastructure. Before cleanup, save these files in your repository under `docs/lab3-task1-evidence/`:
+The updated guide specifies exact paths under `docs/lab3-evidence/`. Run the
+graded training command with `--output-data-dir docs/lab3-evidence`, omit
+`--local-data-path`, and save all console output to
+`docs/lab3-evidence/train-final.log`. Confirm the log includes an
+`Athena QueryExecutionId`. Then run
+`bash scripts/collect-lab3-evidence.sh --track B` or `--track C` before
+teardown; the collector exports the Athena query, MLflow App/runs, and registry
+record, and checks the evidence files and matching metrics.
 
-- the held-out evaluation metrics and per-tier slice results;
-- an MLflow `search_runs` export showing at least three meaningful runs with parameters and metrics;
-- the Model Registry package description showing `PendingManualApproval` and its evaluation metadata;
-- your training command/configuration and XGBoost version.
+Keep the evaluation report, model-design document, and cleanly executed demo
+notebook at the paths in the guide. For Fall 2026, the professor's transition
+note says missing new evidence files do not cost points; a TA may request a
+short screen-share for evidence that is still only in AWS. The export workflow
+is still the easiest way to make the result reviewable after teardown.
 
-Keep the training script and design document with them. The saved evidence makes the AWS results reviewable after teardown; it does not replace using Athena, MLflow, or Model Registry for the lab.
+## Track B: follow the revised RAGAS evidence requirements
+
+From the repository root, activate the project environment and run:
+
+```zsh
+source .venv/bin/activate
+python rag/evaluate.py
+```
+
+The professor has withdrawn the RAGAS thresholds as grading criteria. Run all four supplied cases at least twice. Report each case's scores, the mean and range, and the judge model. For each metric, explain a limitation using a specific case or claim. Measure one pipeline change before and after; it earns credit even if it does not improve the scores.
+
+The local runner now compares the same offer pipeline before and after adding the customer profile as an extra judge context. It runs two repeats per condition and writes detailed per-case scores to `docs/lab3-evidence/rag_eval.csv`, a mean/range summary to `docs/lab3-ragas-summary.csv`, and answers plus contexts to `docs/lab3-rag-comparison-examples.json`. It names the judge model in both outputs. Before/after is the one measured change; do not combine it with a prompt rewrite if you want to attribute score differences to profile context.
+
+This run calls Bedrock for embeddings, offer generation, and RAGAS scoring, so it may incur AWS charges. If you get `Could not connect to the endpoint URL` or a DNS error, check network access and the AWS profile used by Python. With IAM Identity Center, run `aws sso login --profile YOUR_PROFILE` and set `AWS_PROFILE=YOUR_PROFILE` in the same terminal. Do not paste credentials into the script or commit them.
+
+A `NaN` score means the judge call failed, often from throttling. It is missing evidence, not zero. Rerun until you have valid scores for all four cases in both repeats of each condition. The range is the maximum minus minimum across repeated scores; also show the values per case so the grader can see where the metric varies.
+
+Use the rubric's revised interpretation of the metrics:
+
+- **Faithfulness:** the judge sees retrieved policy context and, in the after condition, the customer profile. Unsupported wording or a claim present only in the profile can shift the score. Avoid filler such as “We've missed you!” and invented terms such as an unprovided redemption deadline.
+- **Answer relevancy:** this metric was designed for question answering, so a generated offer may be relevant but still score poorly. Cite a case where the offer answers the request and explain what the judge appears to penalize.
+- **Context recall:** the supplied ground truths include claims the policy corpus does not support, so retrieval of the complete corpus still cannot satisfy every expected claim. Identify a specific unsupported ground-truth claim rather than trying to force retrieval to invent evidence.
+
+Adding profile data to judge contexts is a rubric-supported pipeline change because the judge otherwise cannot verify profile facts in an offer. Keep retrieved policy chunks and the profile labeled separately in the saved evidence so a grader can see the provenance of each claim.
+
+If you get `Could not connect to the endpoint URL` or a DNS error, check that your environment has network access to Bedrock and that the AWS profile used by Python is authenticated. If you use AWS IAM Identity Center, run `aws sso login --profile YOUR_PROFILE` in the same terminal and set `AWS_PROFILE=YOUR_PROFILE` before starting the script. Do not paste credentials into the script or commit them.
+
+The handout rubric says “demo notebook,” but the Solution Notes provide a Python entry point. Keep the command you ran and the required Track B examples with your submission; ask the instructor which artifact format they expect if the rubric has not been updated.
+
+## Keep retention-offer expiry separate from return eligibility
+
+POL-LOY-011 §5.1 gives a retention offer a 45-day redemption period. That does not extend the return window: Gold has 30 calendar days from delivery (online) or purchase (in store), under POL-RET-004. State the offer deadline separately, avoid wording that implies a 45-day return period, and give the customer an explicit next step such as “Shop Outdoor or Footwear and redeem this offer by [date].” Also, a standing tier benefit such as Gold free return shipping may be accurate but is not necessarily a new retention incentive; do not label it “exclusive” unless the campaign actually makes it exclusive.
+
+## If RAGAS reports `LLMDidNotFinishException`, check score completeness
+
+The RAGAS judge can run out of output tokens while scoring long answers and policy contexts. A `NaN` score is missing evidence, not a zero. The local `rag/evaluate.py` configures a larger judge output limit and reports valid counts; rerun if any case is missing a metric. The withdrawn thresholds are not pass/fail criteria. Inspect individual offers and contexts to support your analysis; an offer's 45-day redemption deadline does not extend a Gold member's 30-day return window.
+
+When offers invent “bonus points,” a new minimum purchase, an available birthday reward, or an unused gear-credit balance, that is a prompt-grounding failure. The customer profile does not contain those facts. Use a stated tier benefit as an existing benefit; don’t turn it into a new promotion or call it exclusive. Lifetime value is also not the trailing-12-month spend used to determine a policy tier, so do not claim a customer is a specific amount from the next tier.
+
+## A policy duration is not an individualized expiry date
+
+POL-LOY-011 §5.1 says a retention offer is valid for 45 days **from issue**. You may use that exact policy wording only when the retention-offer chunk was retrieved. Do not turn it into a calendar deadline—or “within the next 45 days”—unless the profile supplies the issue date. Likewise, “400 locations” is supported by the shipping/FAQ corpus, but it is not useful offer personalization; include it only when a customer actually asks about pickup or locations and you retrieved its source.
+
+## Track C: a passing scenario row does not prove the reply is policy-correct
+
+Run the local ReAct agent and save its CSV plus JSONL trace:
+
+```bash
+source .venv/bin/activate
+python -m agent.evaluate
+```
+
+The CSV checks tool calls and escalation behavior. Review the saved `response` and `tool_call` events in `docs/lab3-agent-traces.jsonl` as well, especially TC-002 through TC-005. TC-002's 30-day rule is in POL-RET-004 §1, not the loyalty document; the Silver return-shipping fee is in POL-RET-004 §6.2. TC-004 should ask for clarification without promising a refund. For TC-005, inspect the final reply after all tool calls: confirm it cites POL-RET-004 §4, clearly declines the final-sale return, does not suggest an exception is possible, and calls `escalate_to_human`. Wording such as “explore other options” can imply an exception even when the escalation tool was called. A tool-check PASS alone does not verify those response details. For TC-006, a generic mention of escalation is not a handoff; the local evaluator counts only an actual `escalate_to_human` tool call.

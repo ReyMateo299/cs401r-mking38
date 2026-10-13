@@ -24,7 +24,7 @@
     "lift_ci_high": 0.0798,
     "positive_rate_val": 0.22,
     "n_val_samples": 3000,
-    "eval_timestamp": "2026-10-11T04:31:07.543918"
+    "eval_timestamp": "2026-10-13T15:56:31.460707"
   },
   "slice_results": {
     "Bronze": {
@@ -73,5 +73,5 @@
     },
     "_worst_tier": "Silver"
   },
-  "training_date": "20261011T043109"
+  "training_date": "20261013T155634"
 }

@@ -71,7 +71,8 @@ try:
 except ImportError:
     raise ImportError("xgboost is required: pip install xgboost")
 
-from sklearn.metrics import (auc, classification_report, precision_recall_curve,
+from sklearn.metrics import (ConfusionMatrixDisplay, auc, classification_report,
+                              confusion_matrix, precision_recall_curve,
                               roc_auc_score)
 from sklearn.model_selection import train_test_split
 
@@ -291,9 +292,12 @@ def load_features_from_feature_store(feature_group_name: str,
         ORDER BY customer_id
     """
 
-    query.run(query_string=query_string,
-              output_location=f"s3://{artifacts_bucket}/artifacts/athena-results/")
+    query_execution_id = query.run(
+        query_string=query_string,
+        output_location=f"s3://{artifacts_bucket}/artifacts/athena-results/",
+    )
     query.wait()
+    print(f"Athena QueryExecutionId: {query_execution_id}")
     df = query.as_dataframe()
 
     # Fail loudly on the two silent failure modes rather than training on garbage.
@@ -640,6 +644,65 @@ def evaluate_slices(model, X_val, y_val, tiers, min_class_count=20,
     return results
 
 
+def save_task1_evidence(model, X_val, y_val, slice_results: dict,
+                        output_dir: str, threshold: float = 0.5) -> None:
+    """Write the plots and slice table required by the Lab 3 evidence checklist."""
+    import csv
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    probabilities = model.predict(xgb.DMatrix(X_val, feature_names=FEATURE_COLUMNS))
+    predictions = (probabilities > threshold).astype(int)
+
+    cm = confusion_matrix(y_val, predictions, labels=[0, 1])
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ConfusionMatrixDisplay(
+        confusion_matrix=cm, display_labels=["No churn", "Churn"]
+    ).plot(ax=ax, cmap="Blues", colorbar=False, values_format="d")
+    ax.set_title(f"Churn model confusion matrix (threshold={threshold:.2f})")
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_dir, "confusion-matrix.png"), dpi=160)
+    plt.close(fig)
+
+    importance_fig, importance_ax = plt.subplots(figsize=(9, 6))
+    xgb.plot_importance(
+        model, importance_type="gain", show_values=False, ax=importance_ax
+    )
+    importance_ax.set_title("Feature importance (gain)")
+    importance_fig.tight_layout()
+    importance_fig.savefig(
+        os.path.join(output_dir, "feature-importance.png"), dpi=160
+    )
+    plt.close(importance_fig)
+
+    worst_tier = slice_results.get("_worst_tier")
+    slice_path = os.path.join(output_dir, "slice-evaluation.csv")
+    columns = ["tier", "n", "positives", "auc", "auc_ci_low", "auc_ci_high", "recall",
+               "too_small_to_conclude", "weakest_tier", "flag_weak_recall"]
+    with open(slice_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=columns)
+        writer.writeheader()
+        for tier, values in slice_results.items():
+            if tier.startswith("_"):
+                continue
+            writer.writerow({
+                "tier": tier,
+                "n": values["n"],
+                "positives": values["positives"],
+                "auc": values["auc"],
+                "auc_ci_low": values["auc_ci_low"],
+                "auc_ci_high": values["auc_ci_high"],
+                "recall": values["recall_top10"],
+                "too_small_to_conclude": not values["reliable"],
+                "weakest_tier": tier == worst_tier,
+                "flag_weak_recall": values["flag_weak_recall"],
+            })
+    print(f"Saved Track A evidence: {slice_path}, confusion-matrix.png, feature-importance.png")
+
+
 # ── Experiment Tracking (MLflow App) ───────────────────────────────────────────
 
 def track_run(args, metrics: dict, scale_pos_weight: float,
@@ -807,6 +870,7 @@ def main():
     baseline_proba = train_recency_baseline(X_train, y_train, X_val)
     metrics = evaluate_model(model, X_val, y_val, baseline_proba)
     slice_results = evaluate_slices(model, X_val, y_val, tier_val)
+    save_task1_evidence(model, X_val, y_val, slice_results, args.output_data_dir)
 
     # 6. Save and register
     save_and_register_model(model, metrics, args, slice_results)
