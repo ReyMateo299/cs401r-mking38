@@ -1,0 +1,17 @@
+condition,repeat,customer_id,judge_model,faithfulness,answer_relevancy,context_recall
+before_profile_context,1,CUST-10000317,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.1111111111111111,0.5465207569681316,0.5
+before_profile_context,1,CUST-10000904,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.125,0.45926488389015335,0.6
+before_profile_context,1,CUST-10000122,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.2,0.26925158822647016,0.3333333333333333
+before_profile_context,1,CUST-10000588,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.2222222222222222,0.40250735494345125,1.0
+before_profile_context,2,CUST-10000317,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.0,0.5863521368466494,0.5
+before_profile_context,2,CUST-10000904,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.0,0.5143735198913912,0.6
+before_profile_context,2,CUST-10000122,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.3333333333333333,0.1110112731607744,0.3333333333333333
+before_profile_context,2,CUST-10000588,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.2727272727272727,0.459730519630076,1.0
+after_profile_context,1,CUST-10000317,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.2727272727272727,0.5465207569681316,1.0
+after_profile_context,1,CUST-10000904,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.3333333333333333,0.3127378011777986,0.6
+after_profile_context,1,CUST-10000122,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.5,0.27337245731272636,0.3333333333333333
+after_profile_context,1,CUST-10000588,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.2222222222222222,0.29895448996030893,0.5
+after_profile_context,2,CUST-10000317,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.375,0.31236603470187463,1.0
+after_profile_context,2,CUST-10000904,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.5454545454545454,0.47919016838853595,0.6
+after_profile_context,2,CUST-10000122,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.6153846153846154,0.2589072933209466,0.3333333333333333
+after_profile_context,2,CUST-10000588,us.anthropic.claude-haiku-4-5-20251001-v1:0,0.4444444444444444,0.2954351076892623,0.75

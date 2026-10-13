@@ -1,152 +1,213 @@
-"""Run Track B retrieval and prompt ablations using the provided RAGAS harness.
+"""Run the revised Track B RAGAS comparison.
+
+The revised assignment treats RAGAS values as diagnostic evidence, not pass
+thresholds. This runner scores all four instructor-provided cases twice before
+and twice after one change: adding the customer profile as a judge context.
+It writes detailed scores and a per-case/overall mean-and-range summary.
 
 Run from the repository root after configuring Bedrock credentials:
     python rag/evaluate.py
-
-The script does not modify the supplied evaluation harness. It adds one local
-fifth test case, compares retrieval Options A/B/C with the final two-pass
-retriever, and compares raw numeric signals with the interpreted prompt.
 """
 
 import json
-from copy import deepcopy
+import math
+import sys
 from pathlib import Path
 
 import pandas as pd
+from datasets import Dataset
+from langchain_aws import BedrockEmbeddings, ChatBedrock
+from ragas import evaluate as ragas_evaluate
+from ragas.embeddings import LangchainEmbeddingsWrapper
+from ragas.llms import LangchainLLMWrapper
+from ragas.metrics import answer_relevancy, context_recall, faithfulness
 
-from evaluation_harness import OFFER_TEST_CASES, RAGEvaluator, RAGTestCase
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+if (ROOT / "evaluation" / "evaluation_harness.py").is_file():
+    from evaluation.evaluation_harness import OFFER_TEST_CASES
+elif (ROOT / "evalutation" / "evaluation_harness.py").is_file():
+    from evalutation.evaluation_harness import OFFER_TEST_CASES
+elif (ROOT / "evaluation_harness.py").is_file():
+    from evaluation_harness import OFFER_TEST_CASES
+else:
+    raise FileNotFoundError(
+        "Could not locate evaluation_harness.py in evaluation/, evalutation/, or the repository root"
+    )
+
 from rag.index import build_index
 from rag.offer import generate_offer
 
 
-ROOT = Path(__file__).resolve().parents[1]
-DOCS = ROOT / "docs"
-STRATEGIES = ("option_a", "option_b", "option_c", "two_pass")
+EVIDENCE = ROOT / "docs" / "lab3-evidence"
+REPEATS = 2
+JUDGE_MODEL = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+REGION = "us-east-1"
+METRICS = ("faithfulness", "answer_relevancy", "context_recall")
 
 
-def fifth_test_case():
-    """A fifth, local case; keep the instructor-provided harness unchanged."""
-    return RAGTestCase(
-        customer_id="LOCAL-TRACKB-005",
-        customer_context={
-            "churn_probability": 0.77,
-            "loyalty_tier": "Bronze",
-            "days_since_last_purchase": 73,
-            "total_lifetime_value": 428.50,
-            "avg_order_value": 58.20,
-            "category_diversity_score": 0.25,
-            "online_to_store_ratio": 0.18,
-            "top_categories": ["Grocery", "Apparel"],
-        },
-        question=(
-            "Generate a retention offer for this at-risk Bronze member who shops in "
-            "store and mainly buys Grocery and Apparel."
-        ),
-        ground_truth=(
-            "The offer should acknowledge Bronze status, recommend Grocery or Apparel, "
-            "and use only supported Bronze entitlements: 1x points, free standard "
-            "shipping at $75+, a $5 birthday reward, and a 30-day return window. "
-            "It must not promise free return shipping, early access, gear repair, or "
-            "free expedited shipping. A modest incentive is appropriate for this profile."
-        ),
+def build_judge():
+    """Build the Bedrock RAGAS judge with an explicit output budget."""
+    llm = LangchainLLMWrapper(ChatBedrock(
+        model_id=JUDGE_MODEL,
+        region_name=REGION,
+        model_kwargs={"temperature": 0, "max_tokens": 4096},
+    ))
+    embeddings = LangchainEmbeddingsWrapper(BedrockEmbeddings(
+        model_id="amazon.titan-embed-text-v2:0",
+        region_name=REGION,
+    ))
+    return llm, embeddings
+
+
+def profile_context(customer):
+    """Format the supplied profile as an explicit source visible to the judge."""
+    return "[Customer profile supplied with the test case]\n" + json.dumps(
+        customer, sort_keys=True, ensure_ascii=False,
     )
 
 
-def _evaluate(index, chunks, cases, strategy, signal_mode):
-    outputs = {}
+def as_number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
 
-    def rag_fn(customer_context, question):
-        # Match each invocation back to its built-in case using the complete
-        # stable profile/question pair; the harness callback omits customer_id.
-        tc = next(
-            item for item in cases
-            if item.customer_context is customer_context and item.question == question
-        )
+
+def score_run(index, chunks, cases, condition, repeat, judge_llm, judge_embeddings):
+    include_profile = condition == "after_profile_context"
+    dataset_dict = {"question": [], "answer": [], "contexts": [], "ground_truth": []}
+    outputs = []
+
+    for tc in cases:
+        print(f"  [{condition} repeat {repeat}] Generating {tc.customer_id}...")
         result = generate_offer(
-            index, chunks, customer_context, question,
-            strategy=strategy, signal_mode=signal_mode,
+            index, chunks, tc.customer_context, tc.question,
+            strategy="two_pass", signal_mode="interpreted",
         )
-        outputs[tc.customer_id] = {
+        judge_contexts = list(result["contexts"])
+        if include_profile:
+            judge_contexts.append(profile_context(tc.customer_context))
+
+        dataset_dict["question"].append(tc.question)
+        dataset_dict["answer"].append(result["answer"])
+        dataset_dict["contexts"].append(judge_contexts)
+        dataset_dict["ground_truth"].append(tc.ground_truth)
+        outputs.append({
+            "condition": condition,
+            "repeat": repeat,
             "customer_id": tc.customer_id,
-            "question": question,
+            "judge_model": JUDGE_MODEL,
+            "question": tc.question,
             "ground_truth": tc.ground_truth,
             "answer": result["answer"],
-            "contexts": result["contexts"],
+            "retrieved_policy_contexts": result["contexts"],
+            "judge_contexts": judge_contexts,
             "usage": result["usage"],
+        })
+
+    print(f"  Scoring all {len(cases)} cases with judge {JUDGE_MODEL}...")
+    scores = ragas_evaluate(
+        Dataset.from_dict(dataset_dict),
+        metrics=[faithfulness, answer_relevancy, context_recall],
+        llm=judge_llm,
+        embeddings=judge_embeddings,
+    ).to_pandas()
+
+    rows = []
+    for position, (_, score_row) in enumerate(scores.iterrows()):
+        output = outputs[position]
+        row = {
+            "condition": condition,
+            "repeat": repeat,
+            "customer_id": output["customer_id"],
+            "judge_model": JUDGE_MODEL,
         }
-        return {"answer": result["answer"], "contexts": result["contexts"]}
-
-    scores = RAGEvaluator(rag_invoke_fn=rag_fn).run(cases)
-    scored_cases = []
-    for position, (_, row) in enumerate(scores.iterrows()):
-        case_output = outputs[cases[position].customer_id]
-        case_output.update({key: _json_value(value) for key, value in row.to_dict().items()})
-        scored_cases.append(case_output)
-
-    summary = {
-        "strategy": strategy,
-        "signal_mode": signal_mode,
-        "faithfulness": _mean(scores, "faithfulness"),
-        "answer_relevancy": _mean(scores, "answer_relevancy"),
-        "context_recall": _mean(scores, "context_recall"),
-        "case_count": len(cases),
-    }
-    return summary, scored_cases
+        for metric in METRICS:
+            row[metric] = as_number(score_row.get(metric))
+        output["scores"] = {metric: row[metric] for metric in METRICS}
+        rows.append(row)
+    return rows, outputs
 
 
-def _mean(frame, column):
-    return float(frame[column].mean()) if column in frame.columns else None
-
-
-def _json_value(value):
-    if hasattr(value, "item"):
-        return value.item()
-    return value
+def summarize(rows):
+    frame = pd.DataFrame(rows)
+    summary_rows = []
+    group_fields = (("condition", "customer_id"), ("condition",))
+    for fields in group_fields:
+        grouper = list(fields) if len(fields) > 1 else fields[0]
+        for key, group in frame.groupby(grouper, dropna=False):
+            key_values = key if isinstance(key, tuple) else (key,)
+            base = dict(zip(fields, key_values))
+            for metric in METRICS:
+                values = pd.to_numeric(group[metric], errors="coerce").dropna()
+                low = float(values.min()) if not values.empty else None
+                high = float(values.max()) if not values.empty else None
+                summary_rows.append({
+                    **base,
+                    "metric": metric,
+                    "mean": float(values.mean()) if not values.empty else None,
+                    "min": low,
+                    "max": high,
+                    "range": high - low if low is not None else None,
+                    "valid_n": int(values.count()),
+                    "expected_n": int(group.shape[0]),
+                    "judge_model": JUDGE_MODEL,
+                })
+    return pd.DataFrame(summary_rows)
 
 
 def main():
-    DOCS.mkdir(exist_ok=True)
+    if len(OFFER_TEST_CASES) != 4:
+        raise ValueError(
+            f"The revised Track B comparison expects the four supplied cases; found {len(OFFER_TEST_CASES)}."
+        )
+    EVIDENCE.mkdir(parents=True, exist_ok=True)
     print("Building the FAISS index from northstar-policy-docs/...")
     index, chunks = build_index(str(ROOT / "northstar-policy-docs"))
     print(f"Indexed {len(chunks)} policy chunks.")
+    judge_llm, judge_embeddings = build_judge()
 
-    cases = deepcopy(OFFER_TEST_CASES) + [fifth_test_case()]
-    all_summaries = []
-    final_examples = []
+    all_rows = []
+    all_outputs = []
+    conditions = ("before_profile_context", "after_profile_context")
+    for condition in conditions:
+        for repeat in range(1, REPEATS + 1):
+            rows, outputs = score_run(
+                index, chunks, OFFER_TEST_CASES, condition, repeat,
+                judge_llm, judge_embeddings,
+            )
+            all_rows.extend(rows)
+            all_outputs.extend(outputs)
 
-    for strategy in STRATEGIES:
-        summary, case_outputs = _evaluate(
-            index, chunks, deepcopy(cases), strategy, "interpreted"
-        )
-        all_summaries.append(summary)
-        if strategy == "two_pass":
-            final_examples = case_outputs
-
-    raw_summary, _ = _evaluate(
-        index, chunks, deepcopy(cases), "two_pass", "raw"
-    )
-    raw_summary["strategy"] = "two_pass"
-    all_summaries.append(raw_summary)
-
-    comparison = pd.DataFrame(all_summaries)
-    comparison.to_csv(DOCS / "lab3-ragas-comparison.csv", index=False)
-
-    chosen = comparison[
-        (comparison["strategy"] == "two_pass")
-        & (comparison["signal_mode"] == "interpreted")
-    ]
-    chosen.to_csv(DOCS / "lab3-ragas-results.csv", index=False)
-    (DOCS / "lab3-rag-examples.json").write_text(
-        json.dumps(final_examples, indent=2, ensure_ascii=False) + "\n",
+    detailed = pd.DataFrame(all_rows)
+    summaries = summarize(all_rows)
+    detailed_path = EVIDENCE / "rag_eval.csv"
+    summary_path = ROOT / "docs" / "lab3-ragas-summary.csv"
+    examples_path = ROOT / "docs" / "lab3-rag-comparison-examples.json"
+    detailed.to_csv(detailed_path, index=False)
+    summaries.to_csv(summary_path, index=False)
+    examples_path.write_text(
+        json.dumps(all_outputs, indent=2, ensure_ascii=False, allow_nan=False) + "\n",
         encoding="utf-8",
     )
 
+    print("\nPer-case and overall metric summary (means and ranges):")
+    print(summaries.to_string(index=False))
     print("\nSaved:")
-    print(f"  {DOCS / 'lab3-ragas-comparison.csv'}")
-    print(f"  {DOCS / 'lab3-ragas-results.csv'}")
-    print(f"  {DOCS / 'lab3-rag-examples.json'}")
-    print("\nStrategy summary:")
-    print(comparison.to_string(index=False))
+    print(f"  {detailed_path}")
+    print(f"  {summary_path}")
+    print(f"  {examples_path}")
+    for condition in conditions:
+        valid = detailed.loc[detailed["condition"] == condition, list(METRICS)].notna().sum()
+        if any(int(valid[metric]) < len(OFFER_TEST_CASES) * REPEATS for metric in METRICS):
+            print(
+                f"\nWARNING: {condition} has failed judge calls. NaN is missing, not zero; "
+                "rerun until each metric has 8 valid scores."
+            )
 
 
 if __name__ == "__main__":

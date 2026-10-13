@@ -1,0 +1,202 @@
+[
+  {
+    "customer_id": "CUST-10000317",
+    "generation_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "question": "Generate a personalized retention offer for this at-risk Gold member who shops mostly online for outdoor gear and footwear.",
+    "customer_profile": {
+      "churn_probability": 0.81,
+      "loyalty_tier": "Gold",
+      "days_since_last_purchase": 47,
+      "total_lifetime_value": 3120.4,
+      "avg_order_value": 186.25,
+      "category_diversity_score": 0.5,
+      "online_to_store_ratio": 0.72,
+      "top_categories": [
+        "Outdoor",
+        "Footwear"
+      ]
+    },
+    "answer": "Subject: Your Gold benefits are waiting\n\nBody: Your account currently shows Gold status, including free return shipping on all your online orders. Explore outdoor gear and footwear on your next visit and use the benefits available to you.",
+    "retrieved_policy_contexts": [
+      "[POL-LOY-011 | 4. Tier Benefits]\n## 4. Tier Benefits\n\n| Benefit | Bronze | Silver | Gold | Platinum |\n|---|---|---|---|---|\n| Points earn rate | 1× | 1.25× | 1.5× | 2× |\n| Birthday reward | $5 | $10 | $20 | $40 |\n| Free standard shipping | $75+ | $50+ | Always | Always |\n| Free return shipping | No | No | Yes | Yes |\n| Return window | 30 days | 30 days | 30 days | **60 days** |\n| Early access to sales | No | 12 hours | 24 hours | 48 hours |\n| Free gear repair | No | No | 2 per year | Unlimited |\n| Dedicated support line | No | No | No | Yes |\n| Annual gear credit | No | No | No | $100 |\n\nBenefits are tied to the member's tier at the time the benefit is used, except the return window, which is fixed at the tier held **at the time of purchase** (see POL-RET-004 §1.1).",
+      "[KB-FAQ-022 | Loyalty]\n## Loyalty\n\n**How do I move up a tier?**\nTier is based on trailing 12-month merchandise spend: Bronze under $500, Silver $500, Gold $2,000, Platinum $5,000. Upgrades happen immediately when you cross a threshold.\n\n**Why did I get downgraded?**\nYour trailing 12-month spend fell below your tier's threshold. Downgrades are evaluated monthly, move you down only one tier at a time, and we email you 30 days beforehand. If you have held Gold or Platinum for 24 months or more, you get one automatic downgrade protection per 24-month period.\n\n**Do returns affect my tier?**\nYes. A refund reduces your trailing spend and can trigger a downgrade.\n\n**When do my points expire?**\n18 months after your most recent qualifying purchase — not 18 months after you earned them. Any purchase resets the clock on your whole balance. We warn you at 60 days and again at 14 days.\n\n**What are my points worth?**\n100 points equals $5. Redeem in increments of 100.\n\n**Can I combine a promo code with points?**\nUsually yes. You cannot combine two targeted offers with each other.\n\n**My offer expired. Can you extend it?**\nNo. Expired offers cannot be reinstated by customer service or by any automated system.\n\n**What happ",
+      "[POL-LOY-011 | 2.1 Tier Upgrades]\n### 2.1 Tier Upgrades\n\nUpgrades take effect **immediately** upon crossing a threshold. A customer whose qualifying purchase pushes trailing spend to $2,000 becomes Gold at the moment the transaction settles and may use Gold benefits on that same visit.",
+      "[POL-LOY-011 | 4.1 Annual Gear Credit]\n### 4.1 Annual Gear Credit\n\nPlatinum members receive a **$100 gear credit** each January 1. The credit expires December 31 of the same year, does not carry over, has no cash value, and is forfeited if the member is downgraded below Platinum before using it.\n\n---",
+      "[POL-RET-004 | 1.1 Extended Window for Platinum Members]\n### 1.1 Extended Window for Platinum Members\n\n**Platinum loyalty members receive a 60-day return window** on all eligible merchandise. This is an automatic benefit; the member does not need to request it and no approval is required.\n\nThe extended window applies based on the member's tier **at the time of purchase**, not at the time of return. A customer who was Gold when they purchased and reached Platinum afterwards receives the standard 30-day window for that order.",
+      "[KB-FAQ-022 | Returns]\n## Returns\n\n**How long do I have to return something?**\n30 days from delivery or purchase. Platinum members get 60 days. Holiday purchases made November 1 through December 24 can be returned through January 31.\n\n**Can I return a final sale item?**\nNo. Final sale items cannot be returned or exchanged. This applies to every tier, including Platinum, and during the holiday window. There is no exception available through customer service.\n\n**What counts as final sale?**\nAnything marked Final Sale, clearance discounted 50% or more, personalized or embroidered items, perishables, opened undergarments and swimwear, gift cards, and digital products.\n\n**Do I pay for return shipping?**\nStandard and Bronze and Silver members pay $7.95, deducted from the refund. Gold and Platinum return shipping is free. Returns to a store are always free.\n\n**I bought it online. Can I return it to a store?**\nYes, at any of our 400 locations — except that items bought in the US or Canada cannot be returned in Mexico, and vice versa.\n\n**My item broke after two months. Is it too late?**\nNot if it is a manufacturing defect. Defects are handled under warranty, which is separate from the return window. NorthStar-bra",
+      "[POL-RET-004 | 1. Standard Return Window]\n## 1. Standard Return Window\n\nMerchandise purchased from NorthStar may be returned within **30 calendar days** of the delivery date (online) or the transaction date (in store), provided the conditions in Section 3 are met.\n\nThe window is measured in calendar days, not business days. A purchase delivered on March 1 is returnable through March 31 inclusive.",
+      "[POL-LOY-011 | 5.1 Retention Offers]\n### 5.1 Retention Offers\n\nRetention offers are generated for members identified as at risk of lapsing. These offers:\n\n- Are valid for **45 days** from issue unless stated otherwise\n- Are limited to **one active retention offer per member** at a time\n- May not be combined with another retention offer\n- Do not extend, alter, or waive any provision of the returns policy\n\nAn offer that promises a benefit inconsistent with these terms — a return window longer than the member's tier allows, a discount stacked beyond the stated limit, or a benefit belonging to a higher tier — is **invalid**, and honoring it requires Director-level approval.\n\n---"
+    ],
+    "usage": {
+      "inputTokens": 3153,
+      "outputTokens": 50,
+      "totalTokens": 3203,
+      "cacheReadInputTokens": 0,
+      "cacheWriteInputTokens": 0
+    },
+    "automated_review": {
+      "status": "manual_review_required",
+      "flags": []
+    }
+  },
+  {
+    "customer_id": "CUST-10000904",
+    "generation_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "question": "Generate a retention offer for this Bronze member who shops in store, buys only apparel, and has not purchased in over two months.",
+    "customer_profile": {
+      "churn_probability": 0.74,
+      "loyalty_tier": "Bronze",
+      "days_since_last_purchase": 68,
+      "total_lifetime_value": 312.8,
+      "avg_order_value": 41.15,
+      "category_diversity_score": 0.125,
+      "online_to_store_ratio": 0.2,
+      "top_categories": [
+        "Apparel"
+      ]
+    },
+    "answer": "Subject: Your Bronze member benefits are waiting\n\nBody: Your account currently shows Bronze status, including free standard shipping on orders of $75 or more. Explore apparel on your next visit to any of our 400 stores or online, and use the benefits available to you as a Bronze member.",
+    "retrieved_policy_contexts": [
+      "[POL-LOY-011 | 4. Tier Benefits]\n## 4. Tier Benefits\n\n| Benefit | Bronze | Silver | Gold | Platinum |\n|---|---|---|---|---|\n| Points earn rate | 1× | 1.25× | 1.5× | 2× |\n| Birthday reward | $5 | $10 | $20 | $40 |\n| Free standard shipping | $75+ | $50+ | Always | Always |\n| Free return shipping | No | No | Yes | Yes |\n| Return window | 30 days | 30 days | 30 days | **60 days** |\n| Early access to sales | No | 12 hours | 24 hours | 48 hours |\n| Free gear repair | No | No | 2 per year | Unlimited |\n| Dedicated support line | No | No | No | Yes |\n| Annual gear credit | No | No | No | $100 |\n\nBenefits are tied to the member's tier at the time the benefit is used, except the return window, which is fixed at the tier held **at the time of purchase** (see POL-RET-004 §1.1).",
+      "[KB-FAQ-022 | Loyalty]\n## Loyalty\n\n**How do I move up a tier?**\nTier is based on trailing 12-month merchandise spend: Bronze under $500, Silver $500, Gold $2,000, Platinum $5,000. Upgrades happen immediately when you cross a threshold.\n\n**Why did I get downgraded?**\nYour trailing 12-month spend fell below your tier's threshold. Downgrades are evaluated monthly, move you down only one tier at a time, and we email you 30 days beforehand. If you have held Gold or Platinum for 24 months or more, you get one automatic downgrade protection per 24-month period.\n\n**Do returns affect my tier?**\nYes. A refund reduces your trailing spend and can trigger a downgrade.\n\n**When do my points expire?**\n18 months after your most recent qualifying purchase — not 18 months after you earned them. Any purchase resets the clock on your whole balance. We warn you at 60 days and again at 14 days.\n\n**What are my points worth?**\n100 points equals $5. Redeem in increments of 100.\n\n**Can I combine a promo code with points?**\nUsually yes. You cannot combine two targeted offers with each other.\n\n**My offer expired. Can you extend it?**\nNo. Expired offers cannot be reinstated by customer service or by any automated system.\n\n**What happ",
+      "[POL-SHP-007 | 2. Free Shipping Thresholds]\n## 2. Free Shipping Thresholds\n\nFree standard shipping applies at the following order subtotals, after discounts and before tax:\n\n| Tier | Free standard shipping at |\n|---|---|\n| Non-member | $99 |\n| Bronze | $75 |\n| Silver | $50 |\n| Gold | Any amount |\n| Platinum | Any amount |\n\nFree shipping applies to **standard** shipping only. Expedited and overnight are charged at full rate for all tiers, with no exception. Gold and Platinum members do not receive free expedited shipping, and this is the most frequent source of customer confusion on this policy.\n\nGift card purchases do not count toward the free shipping threshold.\n\n---",
+      "[POL-LOY-011 | 3. Points]\n## 3. Points\n\nMembers earn **1 point per $1** of qualifying merchandise spend.\n\n| Tier | Earn rate | Effective value |\n|---|---|---|\n| Bronze | 1× | 1 point per $1 |\n| Silver | 1.25× | 1.25 points per $1 |\n| Gold | 1.5× | 1.5 points per $1 |\n| Platinum | 2× | 2 points per $1 |\n\n**100 points = $5** in redemption value. Points may be redeemed in increments of 100, in store or online, and may be combined with promotions unless a promotion states otherwise.",
+      "[POL-RET-004 | 1.1 Extended Window for Platinum Members]\n### 1.1 Extended Window for Platinum Members\n\n**Platinum loyalty members receive a 60-day return window** on all eligible merchandise. This is an automatic benefit; the member does not need to request it and no approval is required.\n\nThe extended window applies based on the member's tier **at the time of purchase**, not at the time of return. A customer who was Gold when they purchased and reached Platinum afterwards receives the standard 30-day window for that order.",
+      "[KB-FAQ-022 | Returns]\n## Returns\n\n**How long do I have to return something?**\n30 days from delivery or purchase. Platinum members get 60 days. Holiday purchases made November 1 through December 24 can be returned through January 31.\n\n**Can I return a final sale item?**\nNo. Final sale items cannot be returned or exchanged. This applies to every tier, including Platinum, and during the holiday window. There is no exception available through customer service.\n\n**What counts as final sale?**\nAnything marked Final Sale, clearance discounted 50% or more, personalized or embroidered items, perishables, opened undergarments and swimwear, gift cards, and digital products.\n\n**Do I pay for return shipping?**\nStandard and Bronze and Silver members pay $7.95, deducted from the refund. Gold and Platinum return shipping is free. Returns to a store are always free.\n\n**I bought it online. Can I return it to a store?**\nYes, at any of our 400 locations — except that items bought in the US or Canada cannot be returned in Mexico, and vice versa.\n\n**My item broke after two months. Is it too late?**\nNot if it is a manufacturing defect. Defects are handled under warranty, which is separate from the return window. NorthStar-bra",
+      "[POL-RET-004 | 1. Standard Return Window]\n## 1. Standard Return Window\n\nMerchandise purchased from NorthStar may be returned within **30 calendar days** of the delivery date (online) or the transaction date (in store), provided the conditions in Section 3 are met.\n\nThe window is measured in calendar days, not business days. A purchase delivered on March 1 is returnable through March 31 inclusive.",
+      "[POL-LOY-011 | 5.1 Retention Offers]\n### 5.1 Retention Offers\n\nRetention offers are generated for members identified as at risk of lapsing. These offers:\n\n- Are valid for **45 days** from issue unless stated otherwise\n- Are limited to **one active retention offer per member** at a time\n- May not be combined with another retention offer\n- Do not extend, alter, or waive any provision of the returns policy\n\nAn offer that promises a benefit inconsistent with these terms — a return window longer than the member's tier allows, a discount stacked beyond the stated limit, or a benefit belonging to a higher tier — is **invalid**, and honoring it requires Director-level approval.\n\n---"
+    ],
+    "usage": {
+      "inputTokens": 3336,
+      "outputTokens": 65,
+      "totalTokens": 3401,
+      "cacheReadInputTokens": 0,
+      "cacheWriteInputTokens": 0
+    },
+    "automated_review": {
+      "status": "manual_review_required",
+      "flags": []
+    }
+  },
+  {
+    "customer_id": "CUST-10000122",
+    "generation_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "question": "Generate a retention offer for this high-value Platinum member with broad category interest and a large average order.",
+    "customer_profile": {
+      "churn_probability": 0.66,
+      "loyalty_tier": "Platinum",
+      "days_since_last_purchase": 39,
+      "total_lifetime_value": 8940.0,
+      "avg_order_value": 447.0,
+      "category_diversity_score": 0.75,
+      "online_to_store_ratio": 0.55,
+      "top_categories": [
+        "Outdoor",
+        "Electronics",
+        "Home"
+      ]
+    },
+    "answer": "Subject: Your Platinum benefits are waiting\n\nBody: Your account currently shows Platinum status, including unlimited free gear repair on eligible items. Explore outdoor gear and electronics on your next visit and use the benefits available to you as a Platinum member.",
+    "retrieved_policy_contexts": [
+      "[POL-LOY-011 | 4. Tier Benefits]\n## 4. Tier Benefits\n\n| Benefit | Bronze | Silver | Gold | Platinum |\n|---|---|---|---|---|\n| Points earn rate | 1× | 1.25× | 1.5× | 2× |\n| Birthday reward | $5 | $10 | $20 | $40 |\n| Free standard shipping | $75+ | $50+ | Always | Always |\n| Free return shipping | No | No | Yes | Yes |\n| Return window | 30 days | 30 days | 30 days | **60 days** |\n| Early access to sales | No | 12 hours | 24 hours | 48 hours |\n| Free gear repair | No | No | 2 per year | Unlimited |\n| Dedicated support line | No | No | No | Yes |\n| Annual gear credit | No | No | No | $100 |\n\nBenefits are tied to the member's tier at the time the benefit is used, except the return window, which is fixed at the tier held **at the time of purchase** (see POL-RET-004 §1.1).",
+      "[POL-LOY-011 | 4.1 Annual Gear Credit]\n### 4.1 Annual Gear Credit\n\nPlatinum members receive a **$100 gear credit** each January 1. The credit expires December 31 of the same year, does not carry over, has no cash value, and is forfeited if the member is downgraded below Platinum before using it.\n\n---",
+      "[KB-FAQ-022 | Loyalty]\n## Loyalty\n\n**How do I move up a tier?**\nTier is based on trailing 12-month merchandise spend: Bronze under $500, Silver $500, Gold $2,000, Platinum $5,000. Upgrades happen immediately when you cross a threshold.\n\n**Why did I get downgraded?**\nYour trailing 12-month spend fell below your tier's threshold. Downgrades are evaluated monthly, move you down only one tier at a time, and we email you 30 days beforehand. If you have held Gold or Platinum for 24 months or more, you get one automatic downgrade protection per 24-month period.\n\n**Do returns affect my tier?**\nYes. A refund reduces your trailing spend and can trigger a downgrade.\n\n**When do my points expire?**\n18 months after your most recent qualifying purchase — not 18 months after you earned them. Any purchase resets the clock on your whole balance. We warn you at 60 days and again at 14 days.\n\n**What are my points worth?**\n100 points equals $5. Redeem in increments of 100.\n\n**Can I combine a promo code with points?**\nUsually yes. You cannot combine two targeted offers with each other.\n\n**My offer expired. Can you extend it?**\nNo. Expired offers cannot be reinstated by customer service or by any automated system.\n\n**What happ",
+      "[POL-SHP-007 | 2. Free Shipping Thresholds]\n## 2. Free Shipping Thresholds\n\nFree standard shipping applies at the following order subtotals, after discounts and before tax:\n\n| Tier | Free standard shipping at |\n|---|---|\n| Non-member | $99 |\n| Bronze | $75 |\n| Silver | $50 |\n| Gold | Any amount |\n| Platinum | Any amount |\n\nFree shipping applies to **standard** shipping only. Expedited and overnight are charged at full rate for all tiers, with no exception. Gold and Platinum members do not receive free expedited shipping, and this is the most frequent source of customer confusion on this policy.\n\nGift card purchases do not count toward the free shipping threshold.\n\n---",
+      "[POL-RET-004 | 1.1 Extended Window for Platinum Members]\n### 1.1 Extended Window for Platinum Members\n\n**Platinum loyalty members receive a 60-day return window** on all eligible merchandise. This is an automatic benefit; the member does not need to request it and no approval is required.\n\nThe extended window applies based on the member's tier **at the time of purchase**, not at the time of return. A customer who was Gold when they purchased and reached Platinum afterwards receives the standard 30-day window for that order.",
+      "[KB-FAQ-022 | Returns]\n## Returns\n\n**How long do I have to return something?**\n30 days from delivery or purchase. Platinum members get 60 days. Holiday purchases made November 1 through December 24 can be returned through January 31.\n\n**Can I return a final sale item?**\nNo. Final sale items cannot be returned or exchanged. This applies to every tier, including Platinum, and during the holiday window. There is no exception available through customer service.\n\n**What counts as final sale?**\nAnything marked Final Sale, clearance discounted 50% or more, personalized or embroidered items, perishables, opened undergarments and swimwear, gift cards, and digital products.\n\n**Do I pay for return shipping?**\nStandard and Bronze and Silver members pay $7.95, deducted from the refund. Gold and Platinum return shipping is free. Returns to a store are always free.\n\n**I bought it online. Can I return it to a store?**\nYes, at any of our 400 locations — except that items bought in the US or Canada cannot be returned in Mexico, and vice versa.\n\n**My item broke after two months. Is it too late?**\nNot if it is a manufacturing defect. Defects are handled under warranty, which is separate from the return window. NorthStar-bra",
+      "[POL-RET-004 | 1. Standard Return Window]\n## 1. Standard Return Window\n\nMerchandise purchased from NorthStar may be returned within **30 calendar days** of the delivery date (online) or the transaction date (in store), provided the conditions in Section 3 are met.\n\nThe window is measured in calendar days, not business days. A purchase delivered on March 1 is returnable through March 31 inclusive.",
+      "[POL-LOY-011 | 5.1 Retention Offers]\n### 5.1 Retention Offers\n\nRetention offers are generated for members identified as at risk of lapsing. These offers:\n\n- Are valid for **45 days** from issue unless stated otherwise\n- Are limited to **one active retention offer per member** at a time\n- May not be combined with another retention offer\n- Do not extend, alter, or waive any provision of the returns policy\n\nAn offer that promises a benefit inconsistent with these terms — a return window longer than the member's tier allows, a discount stacked beyond the stated limit, or a benefit belonging to a higher tier — is **invalid**, and honoring it requires Director-level approval.\n\n---"
+    ],
+    "usage": {
+      "inputTokens": 3251,
+      "outputTokens": 54,
+      "totalTokens": 3305,
+      "cacheReadInputTokens": 0,
+      "cacheWriteInputTokens": 0
+    },
+    "automated_review": {
+      "status": "manual_review_required",
+      "flags": []
+    }
+  },
+  {
+    "customer_id": "CUST-10000588",
+    "generation_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "question": "Generate a retention offer for this Silver member whose lifetime value is just under the Gold threshold.",
+    "customer_profile": {
+      "churn_probability": 0.7,
+      "loyalty_tier": "Silver",
+      "total_lifetime_value": 1985.0,
+      "days_since_last_purchase": 52,
+      "avg_order_value": 132.3,
+      "category_diversity_score": 0.375,
+      "online_to_store_ratio": 0.61,
+      "top_categories": [
+        "Home",
+        "Beauty"
+      ]
+    },
+    "answer": "Subject: Your Silver Member Benefits Are Ready to Use\n\nBody: Your account currently shows Silver status, including free standard shipping on orders of $50 or more and 1.25× points on every purchase. Explore Home and Beauty on your next visit and use the benefits available to you as a Silver member.",
+    "retrieved_policy_contexts": [
+      "[POL-LOY-011 | 4. Tier Benefits]\n## 4. Tier Benefits\n\n| Benefit | Bronze | Silver | Gold | Platinum |\n|---|---|---|---|---|\n| Points earn rate | 1× | 1.25× | 1.5× | 2× |\n| Birthday reward | $5 | $10 | $20 | $40 |\n| Free standard shipping | $75+ | $50+ | Always | Always |\n| Free return shipping | No | No | Yes | Yes |\n| Return window | 30 days | 30 days | 30 days | **60 days** |\n| Early access to sales | No | 12 hours | 24 hours | 48 hours |\n| Free gear repair | No | No | 2 per year | Unlimited |\n| Dedicated support line | No | No | No | Yes |\n| Annual gear credit | No | No | No | $100 |\n\nBenefits are tied to the member's tier at the time the benefit is used, except the return window, which is fixed at the tier held **at the time of purchase** (see POL-RET-004 §1.1).",
+      "[KB-FAQ-022 | Loyalty]\n## Loyalty\n\n**How do I move up a tier?**\nTier is based on trailing 12-month merchandise spend: Bronze under $500, Silver $500, Gold $2,000, Platinum $5,000. Upgrades happen immediately when you cross a threshold.\n\n**Why did I get downgraded?**\nYour trailing 12-month spend fell below your tier's threshold. Downgrades are evaluated monthly, move you down only one tier at a time, and we email you 30 days beforehand. If you have held Gold or Platinum for 24 months or more, you get one automatic downgrade protection per 24-month period.\n\n**Do returns affect my tier?**\nYes. A refund reduces your trailing spend and can trigger a downgrade.\n\n**When do my points expire?**\n18 months after your most recent qualifying purchase — not 18 months after you earned them. Any purchase resets the clock on your whole balance. We warn you at 60 days and again at 14 days.\n\n**What are my points worth?**\n100 points equals $5. Redeem in increments of 100.\n\n**Can I combine a promo code with points?**\nUsually yes. You cannot combine two targeted offers with each other.\n\n**My offer expired. Can you extend it?**\nNo. Expired offers cannot be reinstated by customer service or by any automated system.\n\n**What happ",
+      "[POL-SHP-007 | 2. Free Shipping Thresholds]\n## 2. Free Shipping Thresholds\n\nFree standard shipping applies at the following order subtotals, after discounts and before tax:\n\n| Tier | Free standard shipping at |\n|---|---|\n| Non-member | $99 |\n| Bronze | $75 |\n| Silver | $50 |\n| Gold | Any amount |\n| Platinum | Any amount |\n\nFree shipping applies to **standard** shipping only. Expedited and overnight are charged at full rate for all tiers, with no exception. Gold and Platinum members do not receive free expedited shipping, and this is the most frequent source of customer confusion on this policy.\n\nGift card purchases do not count toward the free shipping threshold.\n\n---",
+      "[POL-LOY-011 | 4.1 Annual Gear Credit]\n### 4.1 Annual Gear Credit\n\nPlatinum members receive a **$100 gear credit** each January 1. The credit expires December 31 of the same year, does not carry over, has no cash value, and is forfeited if the member is downgraded below Platinum before using it.\n\n---",
+      "[POL-RET-004 | 1.1 Extended Window for Platinum Members]\n### 1.1 Extended Window for Platinum Members\n\n**Platinum loyalty members receive a 60-day return window** on all eligible merchandise. This is an automatic benefit; the member does not need to request it and no approval is required.\n\nThe extended window applies based on the member's tier **at the time of purchase**, not at the time of return. A customer who was Gold when they purchased and reached Platinum afterwards receives the standard 30-day window for that order.",
+      "[KB-FAQ-022 | Returns]\n## Returns\n\n**How long do I have to return something?**\n30 days from delivery or purchase. Platinum members get 60 days. Holiday purchases made November 1 through December 24 can be returned through January 31.\n\n**Can I return a final sale item?**\nNo. Final sale items cannot be returned or exchanged. This applies to every tier, including Platinum, and during the holiday window. There is no exception available through customer service.\n\n**What counts as final sale?**\nAnything marked Final Sale, clearance discounted 50% or more, personalized or embroidered items, perishables, opened undergarments and swimwear, gift cards, and digital products.\n\n**Do I pay for return shipping?**\nStandard and Bronze and Silver members pay $7.95, deducted from the refund. Gold and Platinum return shipping is free. Returns to a store are always free.\n\n**I bought it online. Can I return it to a store?**\nYes, at any of our 400 locations — except that items bought in the US or Canada cannot be returned in Mexico, and vice versa.\n\n**My item broke after two months. Is it too late?**\nNot if it is a manufacturing defect. Defects are handled under warranty, which is separate from the return window. NorthStar-bra",
+      "[POL-RET-004 | 1. Standard Return Window]\n## 1. Standard Return Window\n\nMerchandise purchased from NorthStar may be returned within **30 calendar days** of the delivery date (online) or the transaction date (in store), provided the conditions in Section 3 are met.\n\nThe window is measured in calendar days, not business days. A purchase delivered on March 1 is returnable through March 31 inclusive.",
+      "[POL-LOY-011 | 5.1 Retention Offers]\n### 5.1 Retention Offers\n\nRetention offers are generated for members identified as at risk of lapsing. These offers:\n\n- Are valid for **45 days** from issue unless stated otherwise\n- Are limited to **one active retention offer per member** at a time\n- May not be combined with another retention offer\n- Do not extend, alter, or waive any provision of the returns policy\n\nAn offer that promises a benefit inconsistent with these terms — a return window longer than the member's tier allows, a discount stacked beyond the stated limit, or a benefit belonging to a higher tier — is **invalid**, and honoring it requires Director-level approval.\n\n---"
+    ],
+    "usage": {
+      "inputTokens": 3243,
+      "outputTokens": 67,
+      "totalTokens": 3310,
+      "cacheReadInputTokens": 0,
+      "cacheWriteInputTokens": 0
+    },
+    "automated_review": {
+      "status": "manual_review_required",
+      "flags": []
+    }
+  },
+  {
+    "customer_id": "LOCAL-TRACKB-005",
+    "generation_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "question": "Generate a retention offer for this at-risk Bronze member who shops in store and mainly buys Grocery and Apparel.",
+    "customer_profile": {
+      "churn_probability": 0.78,
+      "loyalty_tier": "Bronze",
+      "days_since_last_purchase": 61,
+      "total_lifetime_value": 418.5,
+      "avg_order_value": 52.3,
+      "category_diversity_score": 0.25,
+      "online_to_store_ratio": 0.25,
+      "top_categories": [
+        "Grocery",
+        "Apparel"
+      ]
+    },
+    "answer": "Subject: Your Bronze Member Benefits Are Ready to Use\n\nBody: Your account currently shows Bronze status, including free standard shipping on orders of $75 or more. Explore Apparel on your next visit to our store or online, and take advantage of the benefits available to you as a Bronze member. We're here to help you find what you need.",
+    "retrieved_policy_contexts": [
+      "[POL-LOY-011 | 4. Tier Benefits]\n## 4. Tier Benefits\n\n| Benefit | Bronze | Silver | Gold | Platinum |\n|---|---|---|---|---|\n| Points earn rate | 1× | 1.25× | 1.5× | 2× |\n| Birthday reward | $5 | $10 | $20 | $40 |\n| Free standard shipping | $75+ | $50+ | Always | Always |\n| Free return shipping | No | No | Yes | Yes |\n| Return window | 30 days | 30 days | 30 days | **60 days** |\n| Early access to sales | No | 12 hours | 24 hours | 48 hours |\n| Free gear repair | No | No | 2 per year | Unlimited |\n| Dedicated support line | No | No | No | Yes |\n| Annual gear credit | No | No | No | $100 |\n\nBenefits are tied to the member's tier at the time the benefit is used, except the return window, which is fixed at the tier held **at the time of purchase** (see POL-RET-004 §1.1).",
+      "[KB-FAQ-022 | Loyalty]\n## Loyalty\n\n**How do I move up a tier?**\nTier is based on trailing 12-month merchandise spend: Bronze under $500, Silver $500, Gold $2,000, Platinum $5,000. Upgrades happen immediately when you cross a threshold.\n\n**Why did I get downgraded?**\nYour trailing 12-month spend fell below your tier's threshold. Downgrades are evaluated monthly, move you down only one tier at a time, and we email you 30 days beforehand. If you have held Gold or Platinum for 24 months or more, you get one automatic downgrade protection per 24-month period.\n\n**Do returns affect my tier?**\nYes. A refund reduces your trailing spend and can trigger a downgrade.\n\n**When do my points expire?**\n18 months after your most recent qualifying purchase — not 18 months after you earned them. Any purchase resets the clock on your whole balance. We warn you at 60 days and again at 14 days.\n\n**What are my points worth?**\n100 points equals $5. Redeem in increments of 100.\n\n**Can I combine a promo code with points?**\nUsually yes. You cannot combine two targeted offers with each other.\n\n**My offer expired. Can you extend it?**\nNo. Expired offers cannot be reinstated by customer service or by any automated system.\n\n**What happ",
+      "[POL-SHP-007 | 2. Free Shipping Thresholds]\n## 2. Free Shipping Thresholds\n\nFree standard shipping applies at the following order subtotals, after discounts and before tax:\n\n| Tier | Free standard shipping at |\n|---|---|\n| Non-member | $99 |\n| Bronze | $75 |\n| Silver | $50 |\n| Gold | Any amount |\n| Platinum | Any amount |\n\nFree shipping applies to **standard** shipping only. Expedited and overnight are charged at full rate for all tiers, with no exception. Gold and Platinum members do not receive free expedited shipping, and this is the most frequent source of customer confusion on this policy.\n\nGift card purchases do not count toward the free shipping threshold.\n\n---",
+      "[POL-LOY-011 | 3. Points]\n## 3. Points\n\nMembers earn **1 point per $1** of qualifying merchandise spend.\n\n| Tier | Earn rate | Effective value |\n|---|---|---|\n| Bronze | 1× | 1 point per $1 |\n| Silver | 1.25× | 1.25 points per $1 |\n| Gold | 1.5× | 1.5 points per $1 |\n| Platinum | 2× | 2 points per $1 |\n\n**100 points = $5** in redemption value. Points may be redeemed in increments of 100, in store or online, and may be combined with promotions unless a promotion states otherwise.",
+      "[POL-RET-004 | 1.1 Extended Window for Platinum Members]\n### 1.1 Extended Window for Platinum Members\n\n**Platinum loyalty members receive a 60-day return window** on all eligible merchandise. This is an automatic benefit; the member does not need to request it and no approval is required.\n\nThe extended window applies based on the member's tier **at the time of purchase**, not at the time of return. A customer who was Gold when they purchased and reached Platinum afterwards receives the standard 30-day window for that order.",
+      "[KB-FAQ-022 | Returns]\n## Returns\n\n**How long do I have to return something?**\n30 days from delivery or purchase. Platinum members get 60 days. Holiday purchases made November 1 through December 24 can be returned through January 31.\n\n**Can I return a final sale item?**\nNo. Final sale items cannot be returned or exchanged. This applies to every tier, including Platinum, and during the holiday window. There is no exception available through customer service.\n\n**What counts as final sale?**\nAnything marked Final Sale, clearance discounted 50% or more, personalized or embroidered items, perishables, opened undergarments and swimwear, gift cards, and digital products.\n\n**Do I pay for return shipping?**\nStandard and Bronze and Silver members pay $7.95, deducted from the refund. Gold and Platinum return shipping is free. Returns to a store are always free.\n\n**I bought it online. Can I return it to a store?**\nYes, at any of our 400 locations — except that items bought in the US or Canada cannot be returned in Mexico, and vice versa.\n\n**My item broke after two months. Is it too late?**\nNot if it is a manufacturing defect. Defects are handled under warranty, which is separate from the return window. NorthStar-bra",
+      "[POL-RET-004 | 1. Standard Return Window]\n## 1. Standard Return Window\n\nMerchandise purchased from NorthStar may be returned within **30 calendar days** of the delivery date (online) or the transaction date (in store), provided the conditions in Section 3 are met.\n\nThe window is measured in calendar days, not business days. A purchase delivered on March 1 is returnable through March 31 inclusive.",
+      "[POL-LOY-011 | 5.1 Retention Offers]\n### 5.1 Retention Offers\n\nRetention offers are generated for members identified as at risk of lapsing. These offers:\n\n- Are valid for **45 days** from issue unless stated otherwise\n- Are limited to **one active retention offer per member** at a time\n- May not be combined with another retention offer\n- Do not extend, alter, or waive any provision of the returns policy\n\nAn offer that promises a benefit inconsistent with these terms — a return window longer than the member's tier allows, a discount stacked beyond the stated limit, or a benefit belonging to a higher tier — is **invalid**, and honoring it requires Director-level approval.\n\n---"
+    ],
+    "usage": {
+      "inputTokens": 3337,
+      "outputTokens": 76,
+      "totalTokens": 3413,
+      "cacheReadInputTokens": 0,
+      "cacheWriteInputTokens": 0
+    },
+    "automated_review": {
+      "status": "manual_review_required",
+      "flags": []
+    }
+  }
+]

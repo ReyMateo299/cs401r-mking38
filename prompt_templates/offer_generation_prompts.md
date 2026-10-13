@@ -1,7 +1,7 @@
 # NorthStar Retail — Offer Generation Prompt Templates
 ## CS 401R Lab 3 Starter Kit (Track B)
 
-These templates are the starting point for your RAG-based offer generation system. Your task is to evaluate them, find their weaknesses, and improve them.
+These templates are the starting point for your RAG-based offer generation system. Your task is to evaluate them, find their weaknesses, and improve them. The professor's Fall 2026 update says the RAGAS thresholds below are not graded because the supplied ground truths and metrics are defective for this task. Treat scores as diagnostics; follow the revised evidence and analysis requirements in the assignment update.
 
 **How to use this file:**
 
@@ -9,7 +9,7 @@ These templates are the starting point for your RAG-based offer generation syste
 2. Test each against the 4 RAG test cases in `evaluation_harness.py`.
 3. Identify which RAGAS metrics fail, and why.
 4. Revise and document your changes in your lab report.
-5. Your final prompts must clear: faithfulness ≥ 0.80, answer_relevancy ≥ 0.75, context_recall ≥ 0.70.
+5. Run all four supplied cases at least twice. Report per-case scores, means and ranges, and the judge model. Explain what limits each metric with specific cases or claims. Measure one pipeline change before and after; an honest result is useful even if scores decline.
 
 ---
 
@@ -60,12 +60,42 @@ an unconditional entitlement claim.
 
 ## Constraints
 - Only state benefits and terms that appear in the retrieved context.
-- Never invent a promotion, discount code, price, or product.
+- This is a reminder of an existing tier benefit, not a newly issued campaign.
+  Use exactly one documented benefit from the customer's displayed tier as the
+  incentive and describe it as already available. Do not frame it as special,
+  exclusive, or newly granted. Do not say that an account balance, credit, or
+  reward is waiting for the customer.
+- Never invent a promotion, discount code, price, sale, product, reward
+  balance, or account balance.
+- Do not invent campaign-only bonus points, discount amounts, purchase minimums,
+  or expiration dates. Use a campaign term only when it is explicitly supplied
+  in the campaign request and supported by policy.
+- Do not assume the customer has an unredeemed points balance, birthday reward,
+  or unused Platinum gear credit unless the profile says so.
+- A standing tier benefit is not a newly granted or exclusive campaign offer.
+  If you use one as the incentive, describe it as an existing benefit.
+- Do not claim that a customer is close to a tier threshold from lifetime value;
+  policy tiers use trailing 12-month spend, which is not provided here.
+- The 45-day retention-offer validity is a redemption deadline, not a return
+  window. Never imply it changes the return period or final-sale exclusions.
 - Never promise a benefit belonging to a tier above the customer's own.
 - If the context does not support a specific offer, say so rather than guessing.
 - Keep the offer body to 2-3 sentences.
-- Always include: (1) a specific incentive, (2) a category the customer already
-  buys, (3) a clear call to action.
+- Do not use warm-up or inferred-intent claims such as "we miss you," "we've
+  noticed," or "you'll love." Do not say "extra points," "bonus points,"
+  "exclusive," "expires," "within 45 days," "close to Gold," or reference an
+  upcoming sale. Do not make a calendar deadline. If the retention-offer policy
+  is relevant, it may only be stated as "valid for 45 days from issue"; omit it
+  when a deadline is not needed.
+- Always include: (1) exactly one existing tier benefit as the incentive,
+  (2) a category the customer already buys, and (3) a neutral call to action.
+  A category recommendation comes from the profile; it is not an inventory,
+  product, or sale claim.
+- Use this safe body structure where possible: "Your account currently shows
+  [Tier] status, including [one existing benefit]. Explore [profile category]
+  on your next visit and use the benefits currently available to you."
+- Include only a subject line and offer body in the generated answer. Do not add
+  an ungrounded rationale or internal analysis.
 ```
 
 The calling code must format `{tier}` and `{tier_confidence}` in the system prompt. Use
@@ -97,14 +127,14 @@ Generate a personalized retention offer for the following at-risk customer.
 Write a retention offer email subject line and a 2-3 sentence body for a targeted campaign.
 The offer must:
 1. Reference at least one category this customer already buys
-2. Include an incentive this customer's tier is actually entitled to
-3. Create urgency without manufacturing false scarcity
+2. Include exactly one existing benefit this customer's tier is actually entitled to;
+   it is a reminder, not a new campaign offer
+3. Use a neutral call to action; do not create urgency, scarcity, a sale, or a deadline
 4. Be grounded in the retrieved policy context - no invented promotions
 
 Respond in this format:
 Subject: [subject line]
 Body: [2-3 sentences]
-Rationale: [one sentence on why this offer suits this customer]
 ```
 
 **Chosen approach — interpret these signals in code before formatting the prompt.** The
@@ -182,8 +212,9 @@ query = (
 
 ```python
 query = (
-    "final sale non-returnable exclusions expired offers cannot be reinstated "
-    "retention offer validity single use combinability"
+    "return window 30 calendar days from delivery or purchase Platinum 60 days "
+    "final sale never returnable retention offer valid 45 days from issue does not "
+    "extend returns policy single use combinability no free expedited shipping"
 )
 ```
 
@@ -237,9 +268,10 @@ Include this in your final system prompt.
 
 | Criterion | Required | Your result |
 |---|---|---|
-| RAGAS faithfulness | ≥ 0.80 | — |
-| RAGAS answer_relevancy | ≥ 0.75 | — |
-| RAGAS context_recall | ≥ 0.70 | — |
+| Four supplied cases run at least twice | Report per-case scores, mean and range | — |
+| RAGAS judge model identified | Required | — |
+| Limitations of each RAGAS metric explained with a case or claim | Required | — |
+| One pipeline change measured before and after | Required; improvement is not required | — |
 | All three planted errors in Template 3 found and corrected | Pass | — |
 | Customer tier and confidence passed to the system prompt | Pass | — |
 | Interpreted shopping signals compared with raw-number prompt | Report both results | — |

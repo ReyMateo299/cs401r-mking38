@@ -117,6 +117,47 @@ Glue jobs run inside the private subnet and need NAT egress. If a job fails,
 inspect the run details in Glue and verify the DataEngineer role, VPC
 connection, security-group self-reference rule, and NAT gateway before rerunning.
 
+## Lab 3 — Churn model and evidence
+
+The Track A trainer reads the Lab 2 Feature Store offline table through Athena,
+trains XGBoost locally, logs the run to the SageMaker MLflow App, and registers
+the model in `northstar-churn-models` as `PendingManualApproval`. Its S3 model
+artifact is stored under `artifacts/models/churn/`; local evaluation outputs
+are written to `docs/lab3-evidence/`.
+
+After applying `infrastructure/environments/dev`, load the resource names from
+Terraform outputs and the MLflow App ARN from your local environment:
+
+```bash
+INFRA_DIR=infrastructure/environments/dev
+FG=$(terraform -chdir="$INFRA_DIR" output -raw feature_group_name)
+BUCKET=$(terraform -chdir="$INFRA_DIR" output -raw s3_bucket_name)
+source .env
+mkdir -p docs/lab3-evidence
+set -o pipefail
+python models/churn/train.py \
+  --feature-group-name "$FG" \
+  --artifacts-bucket "$BUCKET" \
+  --mlflow-arn "$MLFLOW_APP_ARN" \
+  --max-depth 6 --eta 0.03 --num-round 600 \
+  --output-data-dir docs/lab3-evidence \
+  --run-name lab3-final-20261013 \
+  2>&1 | tee docs/lab3-evidence/train-final.log
+```
+
+Do not pass `--local-data-path` for the graded run. The log must show the
+Athena query execution ID. The run writes `evaluation_metrics.json`,
+`slice-evaluation.csv`, `confusion-matrix.png`, and `feature-importance.png`.
+Before teardown, export the AWS-side evidence and run the consistency checks:
+
+```bash
+bash scripts/collect-lab3-evidence.sh --track B  # or --track C
+```
+
+The collector writes the Athena query record, MLflow App and run exports,
+Model Registry export, account information, and its check report under
+`docs/lab3-evidence/`. Fix any reported failures before teardown and submission.
+
 ## Documentation
 
 - `docs/lab2-data-contract.md` defines the `processed/customers/` contract.
