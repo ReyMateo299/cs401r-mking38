@@ -1,5 +1,91 @@
 # Lab 3 instruction suggestions
 
+## Track C teardown handout promises an AgentCore destroy that the script does not perform
+
+**Finding (2026-10-13, verified from the supplied script):** The Track C
+teardown guidance says `scripts/teardown-lab3.sh` destroys the AgentCore
+Terraform stack. The current script only deletes SageMaker endpoints/configs,
+stops in-flight SageMaker jobs, checks MLflow Tracking Servers, and writes the
+teardown log. It contains no `terraform` command and no AgentCore Gateway,
+Harness, policy-engine, Lambda, IAM-role, or CloudWatch-log cleanup.
+
+**Why this can cost students money:** A student who follows the handout can
+receive a successful general teardown message while the AgentCore Harness and
+related resources still exist. The Harness has no traffic after evaluation,
+but leaving the live stack behind is contrary to the lab's cost-control and
+cleanup requirement.
+
+**Belongs in:** Both instructor notes and student tips.
+
+**Suggested revision:** Either add the AgentCore destroy to
+`teardown-lab3.sh`, or change the handout to require it explicitly before the
+script:
+
+```bash
+terraform -chdir=infrastructure/environments/agent destroy
+bash scripts/teardown-lab3.sh
+```
+
+State that the evidence collector must run first, because it exports the
+Harness, Gateway, and Cedar policies that no longer exist after destroy.
+
+## Track C escalation schema conflicts with required scenarios that omit an account ID
+
+**Finding (2026-10-13, verified from the supplied scenarios and tool schema):**
+TC-003 and TC-005 require an `escalate_to_human` call, but neither customer
+message contains an order or customer ID. The supplied escalation tool schema
+requires `customer_id`. A model can therefore correctly recognize that it
+should escalate yet decline to call the tool because it lacks a required
+argument. The first Harness evaluation also showed the related ambiguity that
+a return-policy question without an order ID may be answered with a request for
+details before the required `query_policy` call.
+
+**Why this can block students:** The grader records missing required tool calls
+as failures. Students can be charged for repeated Harness runs while trying to
+infer that a placeholder identifier is permitted, even though the handout does
+not state one.
+
+**Belongs in:** Both instructor notes and student tips. The working schema now
+makes `customer_id` optional and documents `UNKNOWN` as the value when no
+identity is available; the system prompt requires policy lookup before asking
+for a missing order ID.
+
+**Suggested revision:** Make `customer_id` optional in the supplied
+`escalate_to_human` definition and handler, and add this instruction to Track
+C: “For required escalation scenarios without an account identifier, call
+`escalate_to_human` with `customer_id: "UNKNOWN"`; do not skip the tool call.
+For a return question with a stated tier or elapsed time but no order ID, call
+`query_policy` first, then request the missing order information.”
+
+## Track C collector checks a different trace-latency field than the handout requires
+
+**Finding (2026-10-13, verified from the supplied files):** The Track C handout
+and `agent/harness_client.py` specify `latency_ms` in each
+`docs/lab3-evidence/agent-traces.jsonl` record. However,
+`scripts/collect_lab3_evidence.py` validates that at least one record instead
+contains a field named `latency`. A trace produced exactly as the starter
+client documents can therefore be reported as incomplete by the collector.
+
+**Why this can block students:** Students have no reason to invent a second
+field when both the handout and starter client name `latency_ms`. The final
+evidence step may then fail after paid Harness runs, creating needless
+confusion and a potentially expensive rerun.
+
+**Belongs in:** Both instructor notes and student tips. The working Track C
+client records both names as a temporary compatibility measure; `latency_ms`
+remains the authoritative documented value.
+
+**Suggested revision:** In `collect_lab3_evidence.py`, change the required key
+from `latency` to `latency_ms` (or accept either during the transition):
+
+```python
+lacking = [key for key in ("tool", "input", "output", "latency_ms")
+           if not any(key in record for record in records)]
+```
+
+Then keep the handout and starter client on the single explicit field name
+`latency_ms`.
+
 ## MLflow App prerequisites are missing from the main instructions
 
 **Finding (2026-10-09):** The main Lab 3 instructions jump directly to `aws sagemaker create-mlflow-app` without stating that the Lab 1–2 Terraform stack must still be deployed. For the course's intended configuration, the command depends on two resources from that stack:
@@ -250,3 +336,13 @@ State that these files are grading evidence and that the grader does not need st
 **Belongs in:** Both instructor notes and student tips.
 
 **Suggested revision:** Add this explicit guardrail to the handout and starter prompt: “You may state the policy duration only as ‘valid for 45 days from issue’ when the retention-offer policy chunk is retrieved. Do not state a calendar expiry or ‘next 45 days’ unless an offer issue date is supplied. Do not use general operational facts, such as store count, as personalization unless the request needs them and the supporting chunk was retrieved.” Include one compliant and one noncompliant example.
+
+## Track C handout and solution notes prescribe incompatible architectures
+
+**Finding (2026-10-13; verified from the current handout, current starter kit, and solution notes):** The current handout requires Amazon Bedrock AgentCore—an AgentCore Harness, Gateway, Lambda target, Cedar policy engine, and a separate Terraform root—and explicitly says to use AgentCore only. The Solution Notes instead say AgentCore's predecessor, managed Bedrock Agents, is unavailable and direct students to build a client-side ReAct loop over `bedrock-runtime`; the local evaluation harness follows that older route. The working repository consequently contained only the local loop and lacked the handout's Track C starter files (`infrastructure/environments/agent/`, `harness_client.py`, and `policy_tests.py`).
+
+**Why it confuses or blocks students:** These are materially different systems, IAM permissions, costs, deployment commands, evidence files, and teardown procedures. A student following the solution notes can build a working local agent yet fail the current handout's AgentCore deployment and Cedar-cap evidence requirements. A student following the handout cannot use the provided local runner as their end-to-end agent without an AgentCore adapter.
+
+**Belongs in:** Instructor notes; student tips only after the professor names the intended path.
+
+**Suggested revision:** Publish one dated Track C path and archive or relabel the other. If AgentCore is the current requirement, replace the local-ReAct instructions in the Solution Notes and evaluator with the Harness client path, include the complete AgentCore starter files in every student repository, and list the exact evidence commands. If local ReAct remains acceptable, remove the mandatory AgentCore/Terraform/Cedar requirements and make the failure/evidence rubric match it. Until clarified, state that the dated handout is authoritative and that the local loop is optional preparation rather than the graded architecture.

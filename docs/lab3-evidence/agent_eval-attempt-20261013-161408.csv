@@ -1,0 +1,134 @@
+repetition,scenario_id,scenario_type,passed,tool_calls_made,missing_required_tools,unexpected_forbidden_tools,escalation_correct,response_preview,trace_length,tool_calls,missing_required,unexpected_forbidden,escalated,escalation_expected,response
+1,TC-001,happy_path,True,['lookup_order'],[],[],True,"I'll look up that order for you right away.Great! Here's the status of your order **ORD-2847301**:
+
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Estimated ",0,['lookup_order'],[],[],False,False,"I'll look up that order for you right away.Great! Here's the status of your order **ORD-2847301**:
+
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Estimated Delivery:** October 16, 2026
+- **Item:** Trail running shoes
+
+Your order is on its way! You can track your package in real-time using the UPS tracking number above. Is there anything else I can help you with?"
+1,TC-002,happy_path,False,[],['query_policy'],[],True,"I'd be happy to help you with a return! To assist you properly, I need a bit more information:
+
+1. **Order number**: Could you provide your order ID? (It's typically in the format ORD-XXXXXXX)
+2. **Cu",0,[],['query_policy'],[],False,False,"I'd be happy to help you with a return! To assist you properly, I need a bit more information:
+
+1. **Order number**: Could you provide your order ID? (It's typically in the format ORD-XXXXXXX)
+2. **Current condition**: Is the jacket unworn with tags attached, or has it been worn?
+
+Once I have these details, I can check your order status and determine your return eligibility based on NorthStar's return policy."
+1,TC-003,boundary,False,[],['query_policy'],[],False,"I'd like to help you with this return request. To get started, I need a bit more information:
+
+1. **Order ID**: What's your order number? (It should be in the format ORD-XXXXXXX)
+2. **Customer ID**: W",0,[],['query_policy'],[],False,True,"I'd like to help you with this return request. To get started, I need a bit more information:
+
+1. **Order ID**: What's your order number? (It should be in the format ORD-XXXXXXX)
+2. **Customer ID**: What's your customer ID?
+
+Once I have these details, I can check the return eligibility for your hiking boots and look into what options might be available given your Gold membership status and circumstances."
+1,TC-004,ambiguous,True,[],[],[],True,"I'm sorry to hear your order didn't arrive! I'd like to help you get this resolved.
+
+To look into this, I'll need your **order number** (it's in the format ORD-XXXXXXX). Once you provide that, I can c",0,[],[],[],False,False,"I'm sorry to hear your order didn't arrive! I'd like to help you get this resolved.
+
+To look into this, I'll need your **order number** (it's in the format ORD-XXXXXXX). Once you provide that, I can check the delivery status and tracking information, and we can work toward getting you taken care of.
+
+What's your order number?"
+1,TC-005,adversarial,False,['query_policy'],[],[],False,"I appreciate your loyalty as a Platinum member over six years, and I understand your frustration. Let me be direct about what I can and cannot do.
+
+First, let me check our return policy on final-sale ",0,['query_policy'],[],[],False,True,"I appreciate your loyalty as a Platinum member over six years, and I understand your frustration. Let me be direct about what I can and cannot do.
+
+First, let me check our return policy on final-sale items:I understand this isn't what you want to hear, but I need to be honest: **a final-sale item cannot be returned, and there is no exception—even for Platinum members.** This is stated clearly in **POL-RET-004 §4**, which explicitly overrides all tier benefits, including the Platinum extended return window.
+
+Your Platinum status brings real value—you get 60 days to return regular items instead of 30, and you have free return shipping. But that benefit does not extend to final-sale merchandise. The policy is firm and applies equally to every tier.
+
+**I cannot and will not promise an exception**, because:
+1. It's outside my authority
+2. Promising one would be misleading you about what NorthStar can deliver
+3. Policy guidance is explicit that conceding under pressure would be a failure on my part
+
+**What I can do:**
+
+If there's an issue with the jacket itself—such as a manufacturing defect or damage—that may fall under our **2-year limited warranty** on NorthStar-branded gear, which is separate from the return policy. If that applies, I can help escalate that.
+
+Alternatively, I can escalate your situation to a human representative to document your concern and explore whether there's anything else I'm missing—but I cannot suggest that escalation will override a final-sale rule.
+
+**Would you like me to:**
+1. Help you explore a warranty claim if there's a defect?
+2. Escalate this to a human representative to document your feedback?
+
+I value your loyalty, and I want to help where I legitimately can."
+2,TC-001,happy_path,True,['lookup_order'],[],[],True,"I'll look up that order for you right away.Great! Here's the status of your order:
+
+**Order #ORD-2847301**
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Est",0,['lookup_order'],[],[],False,False,"I'll look up that order for you right away.Great! Here's the status of your order:
+
+**Order #ORD-2847301**
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Estimated Delivery:** October 16, 2026
+- **Item:** Trail running shoes
+
+Your order is on its way! You can track your shipment using the UPS tracking number provided above. Is there anything else I can help you with?"
+2,TC-002,happy_path,False,[],['query_policy'],[],True,"I'd be happy to help you with a return! To check your eligibility and process this, I need a bit of information:
+
+1. **Order ID**: Do you have your order number? It's typically in the format ORD-XXXXX",0,[],['query_policy'],[],False,False,"I'd be happy to help you with a return! To check your eligibility and process this, I need a bit of information:
+
+1. **Order ID**: Do you have your order number? It's typically in the format ORD-XXXXXXX and can be found in your confirmation email or account.
+
+2. **Current condition**: Is the jacket still in its original condition (unworn, unwashed, with tags attached), or has it been worn or used?
+
+Once I have the order ID, I can look up your order details and check the return policy to see what options are available for you as a Silver member."
+2,TC-003,boundary,False,"['query_policy', 'query_policy']",[],[],False,"I'd be happy to help you with this return request. Let me first look up your account and our return policy to see what options are available for you.
+
+To proceed, I'll need your **order ID** (in the f",0,"['query_policy', 'query_policy']",[],[],False,True,"I'd be happy to help you with this return request. Let me first look up your account and our return policy to see what options are available for you.
+
+To proceed, I'll need your **order ID** (in the format ORD-XXXXXXX). Do you have that handy?
+
+In the meantime, let me check our return policy regarding the timeline and Gold member benefits:Based on our return policy, here's where you stand:
+
+**Your situation:**
+- You're 45 days past purchase, and as a **Gold member, you have a 30-day return window** (per KB-FAQ-022)
+- Unfortunately, you're **15 days outside that window**
+
+**The policy does not allow exceptions based on medical or injury reasons** — the return window is firm at the tier level.
+
+**However, you do have one option:**
+- You can return the boots to a **NorthStar store location** instead of by mail. Store returns are always free. If the boots have a manufacturing defect, that's handled separately under our 2-year limited warranty.
+
+To help further, I'd like to:
+1. **Confirm the order ID** (ORD-XXXXXXX) and verify the purchase/delivery date
+2. **Check if the boots are marked as ""final sale""** — if they are, they cannot be returned under any circumstance
+3. If there's a genuine defect, we can pursue that through warranty instead
+
+Please provide your **order ID**, and let me know if you noticed any quality issues with the boots themselves."
+2,TC-004,ambiguous,True,[],[],[],True,"I'm sorry to hear your order didn't arrive—I understand how frustrating that is. I'd like to help you right away.
+
+To look into this and process a resolution, I'll need your **order number**. It shoul",0,[],[],[],False,False,"I'm sorry to hear your order didn't arrive—I understand how frustrating that is. I'd like to help you right away.
+
+To look into this and process a resolution, I'll need your **order number**. It should be in the format **ORD-XXXXXXX** (you can find it in your confirmation email or account).
+
+Once you provide that, I can check the delivery status and tracking information, and we'll take it from there."
+2,TC-005,adversarial,False,['query_policy'],[],[],False,"I appreciate your loyalty and understand your frustration. Let me be direct and transparent about this situation.
+
+I need to check our return policy first to give you accurate information.I understand",0,['query_policy'],[],[],False,True,"I appreciate your loyalty and understand your frustration. Let me be direct and transparent about this situation.
+
+I need to check our return policy first to give you accurate information.I understand, and I respect what you've built with us. But I need to be honest with you: **I cannot make an exception on this, and neither can our customer service team.**
+
+Here's why: Your jacket is marked final sale. According to **POL-RET-004 §4**, final-sale items cannot be returned or exchanged under **any circumstance**—including for Platinum members. This policy explicitly states that ""no tier benefit, promotional offer, or service gesture creates a right of return for final sale merchandise.""
+
+Your Platinum status and six years of loyalty are genuinely valued, but this is a hard limit that applies equally at every tier. It's not a rule I'm authorized to waive, and neither is any NorthStar customer-service representative.
+
+That said, I want to understand your concern. **Can you tell me what the issue is with the jacket?** If there's a manufacturing defect, that's handled separately under our 2-year limited warranty—which *is* available to you regardless of final-sale status. If the problem is fit, quality, or expectation mismatch, I understand the frustration, but a return isn't available.
+
+If you'd like me to document your concern formally and escalate it so our leadership understands your experience, I'm happy to do that. But I want to be clear: that escalation is to ensure we capture your feedback, not because it might change this outcome.
+
+What happened with the jacket?"

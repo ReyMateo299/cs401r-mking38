@@ -1,8 +1,9 @@
 # Lab 3 evidence bundle
 
-This folder contains the local artifacts for the final Track A run and the AWS
-exports required by the Lab 3 guide. The final Athena-backed training run was
-completed on October 13, 2026 as `lab3-final-20261013`.
+This folder contains the local artifacts and AWS exports for the final Lab 3
+work. The final Athena-backed Track A training run was completed on October 13,
+2026 as `lab3-final-20261013`. This TA repository includes both Track B and
+the optional Track C extension; their evidence is intentionally kept separate.
 
 ## Track A files from the final run
 
@@ -12,30 +13,53 @@ completed on October 13, 2026 as `lab3-final-20261013`.
 - `slice-evaluation.csv` — results for all four loyalty tiers
 - `confusion-matrix.png` and `feature-importance.png` — evaluation visuals
 - `model.tar.gz` — registered model artifact
-- `mlflow-runs.csv` — current copy is a snapshot from October 11 and predates
-  the final October 13 run; refresh it from AWS with the evidence collector
+- `mlflow-runs.csv` — collector export containing four `northstar-churn` runs
+  with parameters and metrics
+- `account.json`, `athena-query.json`, `mlflow-app.json`, and
+  `model-registry.json` — AWS-side exports captured before teardown
 
 The evaluation write-up is `docs/lab3-evaluation-report.md`. Do not rerun
-training just to regenerate the existing local artifacts. Refresh the AWS
-exports after the Track B evidence is ready, before tearing down infrastructure.
+training just to regenerate these artifacts: the final AWS exports already
+record a successful Athena query, four MLflow runs, and four pending-manual-
+approval registry packages.
 
-## AWS evidence still to export
+## Track B evidence
 
-From the repository root, run:
+- `rag_eval.csv` — 16 valid RAGAS rows: four supplied cases, two repetitions
+  before and after the profile-context change
+- `track-b-generated-examples.json` — five actual captured outputs and their
+  full retrieved contexts
+- `track-b-examples.md` — five policy-reviewed pairs, metric analysis, and
+  three documented failures with fixes
+- `collect-output.txt` — successful Track B collector report (25 OK, no WARN
+  or FAIL)
+
+## Track C evidence (TA extension)
+
+- `agent_eval.csv` — two repetitions of each required scenario, with the one
+  observed TC-003 escalation failure retained honestly
+- `agent-traces.jsonl` and `agent-cost.csv` — every tool event and session-cost
+  estimate from the recorded runs
+- `policy-tests.json` — seven direct Gateway tests, including the two denied
+  over-cap credits and the documented split-credit limitation
+- `agentcore-config.json` — pre-teardown Harness, Gateway, and Cedar-policy
+  export
+- `track-c-failures.md` — three concrete failure analyses and mitigations
+- `collect-output-track-c.txt` — successful Track C collector report (33 OK,
+  no WARN or FAIL)
+
+## Collector status and teardown
+
+The collectors have already run successfully. Their AWS API exports are kept
+as submission evidence; do not rerun the Track C collector after AgentCore is
+destroyed. If a fresh deployment ever needs a collector run, use:
 
 ```bash
 bash scripts/collect-lab3-evidence.sh --track B
+# or, for the AgentCore extension:
+bash scripts/collect-lab3-evidence.sh --track C
 ```
 
-The collector should write `account.json`, `athena-query.json`,
-`mlflow-app.json`, a refreshed `mlflow-runs.csv`, `model-registry.json`, and
-`collect-output.txt`. It also checks that the Athena query succeeded, at least
-three experiment runs are available, and the final run's metrics match the
-evaluation file and a `PendingManualApproval` registry package. Resolve any
-`FAIL` before teardown. This command makes AWS API calls; run it in the
-environment with the credentials used for the lab.
-
-The other lab deliverables are separate: `docs/lab3-model-design.md`,
-`notebooks/lab3-demo.ipynb`, and the required Track B files
-`docs/lab3-evidence/rag_eval.csv` and
-`docs/lab3-evidence/track-b-examples.md`.
+The collector checks the Athena query, MLflow App and runs, registry metadata,
+and—on Track C—the AgentCore configuration. The final Lab 3 teardown result is
+stored separately at `docs/lab3-teardown-output.txt`.

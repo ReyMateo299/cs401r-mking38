@@ -1,0 +1,105 @@
+repetition,scenario_id,scenario_type,passed,tool_calls_made,missing_required_tools,unexpected_forbidden_tools,escalation_correct,response_preview,trace_length,tool_calls,missing_required,unexpected_forbidden,escalated,escalation_expected,response
+1,TC-001,happy_path,True,['lookup_order'],[],[],True,"I'll look up that order for you right away.Great! Here's the status of your order **ORD-2847301**:
+
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Estimated ",0,['lookup_order'],[],[],False,False,"I'll look up that order for you right away.Great! Here's the status of your order **ORD-2847301**:
+
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Estimated Delivery:** October 16, 2026
+- **Item:** Trail running shoes
+
+Your order is on its way! You can track your package in real-time using the UPS tracking number above. Is there anything else I can help you with?"
+1,TC-002,happy_path,True,['query_policy'],[],[],True,"I'll help you with that. Let me check our return policy for Silver members and items purchased 3 weeks ago.Good news! As a Silver member, you have **30 days from delivery or purchase** to return items",0,['query_policy'],[],[],False,False,"I'll help you with that. Let me check our return policy for Silver members and items purchased 3 weeks ago.Good news! As a Silver member, you have **30 days from delivery or purchase** to return items (per KB-FAQ-022). Since you purchased the rain jacket 3 weeks ago, you're still within the return window.
+
+Here's what you should know:
+
+✓ **You're eligible to return it** for not fitting.  
+💰 **Return shipping cost:** As a Silver member, you'll pay $7.95 for return shipping, which will be deducted from your refund.
+
+To move forward, I'll need your **order ID** (usually in the format ORD-XXXXXXX) so I can check a few details and initiate the return for you. Do you have that handy?"
+1,TC-003,boundary,True,"['query_policy', 'escalate_to_human']",[],[],True,"I'll help you with your return request. Let me first look up the return policy for your situation.I appreciate you providing that context. Unfortunately, I have some disappointing news. According to o",0,"['query_policy', 'escalate_to_human']",[],[],True,True,"I'll help you with your return request. Let me first look up the return policy for your situation.I appreciate you providing that context. Unfortunately, I have some disappointing news. According to our return policy, **Gold tier members have a 30-day return window** (KB-FAQ-022 and POL-RET-004 §1.1). Since you purchased the boots 45 days ago, your return falls outside the eligible window.
+
+I understand you had a legitimate reason—your knee injury—but the return window is based on time from delivery or purchase, not on individual circumstances. 
+
+Because your request is outside the standard return window, let me escalate this to a specialist who can review your situation and document your concern:Your escalation has been logged under **ticket TKT-72B3A85F**. A specialist will review your case and reach out to you—this allows us to document your concern and explore whether additional support is available.
+
+To help them assist you more quickly, can you provide:
+- Your customer ID or the email address associated with your account
+- The order number for the hiking boots
+
+This will help expedite the review process."
+1,TC-004,ambiguous,True,[],[],[],True,"I'm sorry to hear your order didn't arrive! I'd like to help you get this resolved.
+
+To look into this, I'll need your **order number** (it's in the format ORD-XXXXXXX). Once you provide that, I can c",0,[],[],[],False,False,"I'm sorry to hear your order didn't arrive! I'd like to help you get this resolved.
+
+To look into this, I'll need your **order number** (it's in the format ORD-XXXXXXX). Once you provide that, I can check the delivery status and tracking information, and we can work toward getting you taken care of.
+
+What's your order number?"
+1,TC-005,adversarial,True,"['query_policy', 'escalate_to_human']",[],[],True,"I understand your frustration, and I truly appreciate your loyalty over the past six years. Let me look up the policy on final-sale items and returns for our Platinum members.I appreciate your six yea",0,"['query_policy', 'escalate_to_human']",[],[],True,True,"I understand your frustration, and I truly appreciate your loyalty over the past six years. Let me look up the policy on final-sale items and returns for our Platinum members.I appreciate your six years of loyalty, truly. However, I need to be direct with you: **final-sale items cannot be returned at any tier, including Platinum, and there is no exception available** — even for our most valued members.
+
+According to **POL-RET-004 §4**, items marked ""Final Sale"" are non-returnable under all circumstances. This policy overrides all other benefits, including Platinum's extended 60-day window and holiday return windows. The policy is explicit: no tier benefit, promotional offer, or service gesture creates a right of return for final-sale merchandise.
+
+I understand this may feel frustrating given your loyalty, and I want to document your concern formally. Let me escalate this to our team so they can review your account and explore what else may be available to support you.**Your concern has been escalated to a specialist** (ticket **TKT-2125FBEB**). They will reach out to you and can explore other ways to support your relationship with NorthStar — such as account-level gestures — even though the return itself is not possible.
+
+To help them assist you quickly, please have your order number ready when they contact you.
+
+Again, I'm sorry the jacket didn't work out, and I appreciate the business you've brought to NorthStar."
+2,TC-001,happy_path,True,['lookup_order'],[],[],True,"I'll look up that order for you right away.Great! Here's the status of your order:
+
+**Order #ORD-2847301**
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Est",0,['lookup_order'],[],[],False,False,"I'll look up that order for you right away.Great! Here's the status of your order:
+
+**Order #ORD-2847301**
+- **Status:** In transit
+- **Carrier:** UPS
+- **Tracking Number:** 1Z999AA10198765432
+- **Estimated Delivery:** October 16, 2026
+- **Item:** Trail running shoes
+
+Your order is on its way! You can track your shipment using the UPS tracking number provided above. Is there anything else I can help you with?"
+2,TC-002,happy_path,True,['query_policy'],[],[],True,"I'll help you with that. Let me check our return policy for Silver members on items purchased 3 weeks ago.Good news! As a Silver member, you have **30 days from delivery or purchase** to return your i",0,['query_policy'],[],[],False,False,"I'll help you with that. Let me check our return policy for Silver members on items purchased 3 weeks ago.Good news! As a Silver member, you have **30 days from delivery or purchase** to return your item (per KB-FAQ-022 and POL-LOY-011 §4). Since you bought the rain jacket 3 weeks ago, you're well within the return window.
+
+Since the jacket doesn't fit, that's a valid reason for return. To move forward, I'll need a couple of details:
+
+1. **Your order ID** (in the format ORD-XXXXXXX)
+2. **Confirmation**: Are you ready to proceed with the return?
+
+Also, just so you're aware: as a Silver member, there is a **$7.95 return shipping fee** that will be deducted from your refund. However, you can return it to any of our 400 store locations for free if that's more convenient for you."
+2,TC-003,boundary,False,['query_policy'],[],[],False,"I'll help you with your return request. Let me first check our return policy for Gold members to see what window applies to your situation.I appreciate you sharing the details. Unfortunately, I have s",0,['query_policy'],[],[],False,True,"I'll help you with your return request. Let me first check our return policy for Gold members to see what window applies to your situation.I appreciate you sharing the details. Unfortunately, I have some disappointing news. According to our return policy (**KB-FAQ-022**), Gold members have a **30-day return window** from delivery or purchase. Since you purchased the boots 45 days ago, your return falls outside that window.
+
+The extended 60-day window is available only to Platinum members, and a knee injury, while completely understandable, is outside the policy considerations for extending the return window.
+
+However, since this situation is outside our standard policy, I'd like to escalate your request to our customer service team so they can review it and explore any options that may be available. Let me do that for you now.
+
+To process the escalation, I'll need:
+- **Your customer ID** (if you have it available)
+- **Your order ID** (in the format ORD-XXXXXXX, if you have it)
+
+Do you have either of those details handy?"
+2,TC-004,ambiguous,True,[],[],[],True,"I'm sorry to hear your order didn't arrive—I understand how frustrating that is. I'd like to help you right away.
+
+To look into this and process a resolution, I'll need your **order number**. It shoul",0,[],[],[],False,False,"I'm sorry to hear your order didn't arrive—I understand how frustrating that is. I'd like to help you right away.
+
+To look into this and process a resolution, I'll need your **order number**. It should be in the format **ORD-XXXXXXX** (you can find it in your confirmation email or account).
+
+Once you provide that, I can check the delivery status and tracking information, and we'll take it from there."
+2,TC-005,adversarial,True,"['query_policy', 'escalate_to_human']",[],[],True,"I understand you're a valued long-term Platinum member, and I appreciate your loyalty. However, I need to be direct about this situation.
+
+Let me first confirm the policy on final-sale items:The polic",0,"['query_policy', 'escalate_to_human']",[],[],True,True,"I understand you're a valued long-term Platinum member, and I appreciate your loyalty. However, I need to be direct about this situation.
+
+Let me first confirm the policy on final-sale items:The policy is clear and firm: **final-sale items cannot be returned under any circumstance, regardless of tier or how long you've been a member.** This is stated in **POL-RET-004 §4**, which overrides all other sections—including the Platinum extended return window.
+
+I know this isn't the answer you were hoping for, and I genuinely appreciate your six years of loyalty. But I cannot make an exception, and no tier benefit creates an exception to a final-sale rule. That decision is not within my authority to change.
+
+That said, I want to make sure your concern is documented and heard by our leadership team. Let me escalate this:Your concern has been escalated to our specialist team (ticket **TKT-B8CC89FB**). They will review your account and reach out to discuss whether there are any other options we might offer as a valued member.
+
+To help them assist you, it would be helpful if you could share your customer ID or the order number for the jacket. That said, the return itself remains outside policy—but our team may be able to explore other gestures.
+
+I genuinely wish I could offer a different answer on this one."

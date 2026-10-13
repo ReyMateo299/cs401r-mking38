@@ -1,0 +1,94 @@
+{
+  "gateway_url": "https://northstar-tools-gw-ocfayrxe4n.gateway.bedrock-agentcore.us-east-1.amazonaws.com/mcp",
+  "results": [
+    {
+      "case": "read-only tool",
+      "tool": "lookup_order",
+      "arguments": {
+        "order_id": "ORD-2847301"
+      },
+      "expected": "ALLOW",
+      "decision": "ALLOW",
+      "detail": "{\"order_id\":\"ORD-2847301\",\"customer_id\":\"CUST-001\",\"status\":\"In transit\",\"carrier\":\"UPS\",\"tracking_number\":\"1Z999AA10198765432\",\"estimated_delivery\":\"2026-10-16\",\"items\":[{\"name\":\"Trail running shoes\",\"final_sale\":false}]}",
+      "as_expected": true
+    },
+    {
+      "case": "credit under cap",
+      "tool": "apply_loyalty_credit",
+      "arguments": {
+        "customer_id": "CUST-001",
+        "amount": 30,
+        "reason": "policy test"
+      },
+      "expected": "ALLOW",
+      "decision": "ALLOW",
+      "detail": "{\"success\":true,\"customer_id\":\"CUST-001\",\"amount_credited\":30,\"points_added\":3000,\"reason_recorded\":\"policy test\",\"message\":\"Applied $30.00 (3000 points) to the customer's account.\"}",
+      "as_expected": true
+    },
+    {
+      "case": "credit at cap",
+      "tool": "apply_loyalty_credit",
+      "arguments": {
+        "customer_id": "CUST-001",
+        "amount": 50,
+        "reason": "policy test"
+      },
+      "expected": "ALLOW",
+      "decision": "ALLOW",
+      "detail": "{\"success\":true,\"customer_id\":\"CUST-001\",\"amount_credited\":50,\"points_added\":5000,\"reason_recorded\":\"policy test\",\"message\":\"Applied $50.00 (5000 points) to the customer's account.\"}",
+      "as_expected": true
+    },
+    {
+      "case": "credit just over cap",
+      "tool": "apply_loyalty_credit",
+      "arguments": {
+        "customer_id": "CUST-001",
+        "amount": 51,
+        "reason": "policy test"
+      },
+      "expected": "DENY",
+      "decision": "DENY",
+      "detail": "Tool Execution Denied: Tool call not allowed due to policy enforcement [Policy evaluation denied due to forbid_credit_over_50-qjlthsz3w_]",
+      "as_expected": true
+    },
+    {
+      "case": "credit well over cap",
+      "tool": "apply_loyalty_credit",
+      "arguments": {
+        "customer_id": "CUST-001",
+        "amount": 75,
+        "reason": "policy test"
+      },
+      "expected": "DENY",
+      "decision": "DENY",
+      "detail": "Tool Execution Denied: Tool call not allowed due to policy enforcement [Policy evaluation denied due to forbid_credit_over_50-qjlthsz3w_]",
+      "as_expected": true
+    },
+    {
+      "case": "split credit part 1",
+      "tool": "apply_loyalty_credit",
+      "arguments": {
+        "customer_id": "CUST-001",
+        "amount": 40,
+        "reason": "split-credit limitation"
+      },
+      "expected": "ALLOW",
+      "decision": "ALLOW",
+      "detail": "{\"success\":true,\"customer_id\":\"CUST-001\",\"amount_credited\":40,\"points_added\":4000,\"reason_recorded\":\"split-credit limitation\",\"message\":\"Applied $40.00 (4000 points) to the customer's account.\"}",
+      "as_expected": true
+    },
+    {
+      "case": "split credit part 2",
+      "tool": "apply_loyalty_credit",
+      "arguments": {
+        "customer_id": "CUST-001",
+        "amount": 40,
+        "reason": "split-credit limitation"
+      },
+      "expected": "ALLOW",
+      "decision": "ALLOW",
+      "detail": "{\"success\":true,\"customer_id\":\"CUST-001\",\"amount_credited\":40,\"points_added\":4000,\"reason_recorded\":\"split-credit limitation\",\"message\":\"Applied $40.00 (4000 points) to the customer's account.\"}",
+      "as_expected": true
+    }
+  ]
+}

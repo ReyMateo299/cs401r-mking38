@@ -245,13 +245,84 @@ When offers invent “bonus points,” a new minimum purchase, an available birt
 
 POL-LOY-011 §5.1 says a retention offer is valid for 45 days **from issue**. You may use that exact policy wording only when the retention-offer chunk was retrieved. Do not turn it into a calendar deadline—or “within the next 45 days”—unless the profile supplies the issue date. Likewise, “400 locations” is supported by the shipping/FAQ corpus, but it is not useful offer personalization; include it only when a customer actually asks about pickup or locations and you retrieved its source.
 
-## Track C: a passing scenario row does not prove the reply is policy-correct
+## Track C: verify the AgentCore prerequisites before deployment
 
-Run the local ReAct agent and save its CSV plus JSONL trace:
+The current Track C handout requires boto3 1.43.57 or later, AWS CLI **v2**
+2.36 or later, and Terraform 1.7.5 or later. `aws --version` beginning with
+`aws-cli/1.` is AWS CLI v1 and does not satisfy the CLI prerequisite; install
+or select an AWS CLI v2 binary before following the handout's AgentCore
+workflow. `terraform version` and this no-network Python check make the other
+requirements visible:
 
-```bash
+```zsh
+terraform version
+python -c "import boto3; print(boto3.__version__)"
+```
+
+This is a verified compatibility requirement from the current handout. Whether
+an older CLI happens to work with a particular Terraform run is not a supported
+assumption.
+
+## Track C: produce and review the AgentCore evidence
+
+After the AgentCore Terraform stack is applied, run the direct Gateway/Cedar
+probe first, then the Harness evaluation:
+
+```zsh
 source .venv/bin/activate
+python agent/policy_tests.py
 python -m agent.evaluate
 ```
 
-The CSV checks tool calls and escalation behavior. Review the saved `response` and `tool_call` events in `docs/lab3-agent-traces.jsonl` as well, especially TC-002 through TC-005. TC-002's 30-day rule is in POL-RET-004 §1, not the loyalty document; the Silver return-shipping fee is in POL-RET-004 §6.2. TC-004 should ask for clarification without promising a refund. For TC-005, inspect the final reply after all tool calls: confirm it cites POL-RET-004 §4, clearly declines the final-sale return, does not suggest an exception is possible, and calls `escalate_to_human`. Wording such as “explore other options” can imply an exception even when the escalation tool was called. A tool-check PASS alone does not verify those response details. For TC-006, a generic mention of escalation is not a handoff; the local evaluator counts only an actual `escalate_to_human` tool call.
+The policy probe must report all seven expected outcomes and writes
+`docs/lab3-evidence/policy-tests.json`. The evaluator runs the five required
+scenarios twice and writes `agent_eval.csv`; its Harness client appends each
+tool call to `agent-traces.jsonl` and each runtime session's estimated cost to
+`agent-cost.csv`. These commands invoke deployed AWS services. They do not
+write or replace Track B's `rag_eval.csv` or `track-b-examples.md`.
+
+The supplied collector currently looks for a legacy `latency` key even though
+the documented trace field is `latency_ms`. The working client records both
+with the same millisecond value for compatibility. If you use an unmodified
+starter client and the collector says that only `latency` is missing, retain
+the correct `latency_ms` field and report the collector mismatch rather than
+rerunning paid Harness evaluations solely for that message.
+
+Review both repetitions, especially TC-002 through TC-005. TC-002's 30-day
+rule is in POL-RET-004 §1, not the loyalty document; the Silver return-shipping
+fee is in §6.2. TC-004 should ask for clarification without promising a refund.
+For TC-005, verify the final reply cites POL-RET-004 §4, plainly declines the
+final-sale return, does not imply an exception is possible, and calls
+`escalate_to_human`. A tool-check PASS alone does not prove those response
+details.
+
+The required TC-003 and TC-005 prompts do not provide a customer ID, but they
+still require a recorded escalation. Make the escalation tool accept an absent
+ID and pass `customer_id: "UNKNOWN"`; do not omit the call because the customer
+did not provide an account number. Similarly, a return request that supplies a
+tier and elapsed time is already a policy question: call `query_policy` before
+asking for a missing order ID.
+
+Finally, write `track-c-failures.md` using actual trace `session_id` values.
+One required failure case is the two allowed $40 credits: a per-call Cedar
+policy sees each call separately, not their $80 total. Explain that a
+stateful/temporal control with durable customer and session identity would be
+needed to enforce a cumulative cap, and state whether the deployed Harness can
+supply that state. Run the Track C evidence collector before teardown so it
+exports `agentcore-config.json` while the stack still exists.
+
+## Track C: destroy the AgentCore Terraform root explicitly
+
+The current `scripts/teardown-lab3.sh` cleans up SageMaker endpoints and jobs,
+but it does **not** run a Terraform destroy for the separate AgentCore root.
+After `collect-lab3-evidence.sh --track C` has successfully written
+`agentcore-config.json`, run:
+
+```zsh
+terraform -chdir=infrastructure/environments/agent destroy
+bash scripts/teardown-lab3.sh
+```
+
+Do not reverse this order: AgentCore configuration must be captured while the
+Harness, Gateway, and Cedar policy engine still exist. Allow the Terraform
+destroy to finish; it is the command that removes the Track C stack.
