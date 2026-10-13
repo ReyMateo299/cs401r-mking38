@@ -1,0 +1,97 @@
+{
+  "ModelPackageGroupName": "northstar-churn-models",
+  "Versions": [
+    {
+      "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/4",
+      "ModelPackageVersion": 4,
+      "ModelApprovalStatus": "PendingManualApproval",
+      "CreationTime": "2026-10-13 09:56:35.780000-06:00",
+      "ModelPackageDescription": "XGBoost churn, AUC 0.7835, lift 0.0603 CI [0.0407, 0.0798]",
+      "CustomerMetadataProperties": {
+        "auc_roc": "0.7835",
+        "auc_vs_baseline": "0.0603",
+        "baseline_auc": "0.7232",
+        "eval_timestamp": "2026-10-13T15:56:31.460707",
+        "lift_ci_high": "0.0798",
+        "lift_ci_low": "0.0407",
+        "n_val_samples": "3000",
+        "positive_rate_val": "0.22",
+        "precision_top10": "0.71",
+        "recall_top10": "0.3227",
+        "run_name": "lab3-final-20261013",
+        "slice_worst_auc": "0.7204",
+        "slice_worst_tier": "Silver",
+        "xgboost_version": "3.4.1"
+      }
+    },
+    {
+      "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/3",
+      "ModelPackageVersion": 3,
+      "ModelApprovalStatus": "PendingManualApproval",
+      "CreationTime": "2026-10-10 22:31:11.525000-06:00",
+      "ModelPackageDescription": "XGBoost churn, AUC 0.7835, lift 0.0603 CI [0.0407, 0.0798]",
+      "CustomerMetadataProperties": {
+        "auc_roc": "0.7835",
+        "auc_vs_baseline": "0.0603",
+        "baseline_auc": "0.7232",
+        "eval_timestamp": "2026-10-11T04:31:07.543918",
+        "lift_ci_high": "0.0798",
+        "lift_ci_low": "0.0407",
+        "n_val_samples": "3000",
+        "positive_rate_val": "0.22",
+        "precision_top10": "0.71",
+        "recall_top10": "0.3227",
+        "run_name": "d6-eta0.03",
+        "slice_worst_auc": "0.7204",
+        "slice_worst_tier": "Silver",
+        "xgboost_version": "3.4.1"
+      }
+    },
+    {
+      "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/2",
+      "ModelPackageVersion": 2,
+      "ModelApprovalStatus": "PendingManualApproval",
+      "CreationTime": "2026-10-10 22:29:22.745000-06:00",
+      "ModelPackageDescription": "XGBoost churn, AUC 0.7764, lift 0.0532 CI [0.0331, 0.0731]",
+      "CustomerMetadataProperties": {
+        "auc_roc": "0.7764",
+        "auc_vs_baseline": "0.0532",
+        "baseline_auc": "0.7232",
+        "eval_timestamp": "2026-10-11T04:29:18.639745",
+        "lift_ci_high": "0.0731",
+        "lift_ci_low": "0.0331",
+        "n_val_samples": "3000",
+        "positive_rate_val": "0.22",
+        "precision_top10": "0.69",
+        "recall_top10": "0.3136",
+        "run_name": "d6-eta0.1",
+        "slice_worst_auc": "0.6959",
+        "slice_worst_tier": "Silver",
+        "xgboost_version": "3.4.1"
+      }
+    },
+    {
+      "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/1",
+      "ModelPackageVersion": 1,
+      "ModelApprovalStatus": "PendingManualApproval",
+      "CreationTime": "2026-10-10 22:27:46.236000-06:00",
+      "ModelPackageDescription": "XGBoost churn, AUC 0.7792, lift 0.056 CI [0.0372, 0.075]",
+      "CustomerMetadataProperties": {
+        "auc_roc": "0.7792",
+        "auc_vs_baseline": "0.056",
+        "baseline_auc": "0.7232",
+        "eval_timestamp": "2026-10-11T04:27:42.586977",
+        "lift_ci_high": "0.075",
+        "lift_ci_low": "0.0372",
+        "n_val_samples": "3000",
+        "positive_rate_val": "0.22",
+        "precision_top10": "0.73",
+        "recall_top10": "0.3318",
+        "run_name": "d3-eta0.1",
+        "slice_worst_auc": "0.711",
+        "slice_worst_tier": "Silver",
+        "xgboost_version": "3.4.1"
+      }
+    }
+  ]
+}

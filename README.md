@@ -158,6 +158,64 @@ The collector writes the Athena query record, MLflow App and run exports,
 Model Registry export, account information, and its check report under
 `docs/lab3-evidence/`. Fix any reported failures before teardown and submission.
 
+### Track B — Offer-generation RAG
+
+Track B indexes `northstar-policy-docs/` locally with FAISS and Titan Text
+Embeddings v2, then uses Claude Haiku 4.5 through Bedrock to generate a short,
+policy-grounded retention offer. The implementation and exact commands are in
+`rag/`:
+
+```bash
+python rag/evaluate.py
+python rag/capture_examples.py
+```
+
+The first command evaluates the four supplied cases and writes
+`docs/lab3-evidence/rag_eval.csv`; the second captures five generated examples
+in `docs/lab3-evidence/track-b-generated-examples.json`. Both invoke Bedrock
+and can incur model charges, so use the already saved evidence for review
+rather than re-running them after final capture. The accompanying interpretation,
+five reviewed examples, and documented failures are in
+`docs/lab3-evidence/track-b-examples.md`.
+
+### Track C — Customer-service agent (TA extension)
+
+This repository also contains the optional Track C implementation. Its
+AgentCore resources use the isolated Terraform root
+`infrastructure/environments/agent/`, separate state, an IAM-authenticated
+Gateway, Lambda tools, and Cedar enforcement for the per-call loyalty-credit
+cap. The agent commands are:
+
+```bash
+python agent/policy_tests.py
+python -m agent.evaluate
+```
+
+These commands invoke deployed AWS resources and can incur charges. The saved
+Track C evidence is `agent_eval.csv`, `agent-traces.jsonl`, `agent-cost.csv`,
+`policy-tests.json`, `agentcore-config.json`, and
+`track-c-failures.md` under `docs/lab3-evidence/`. The Track C collector report
+is retained as `collect-output-track-c.txt`; the current `collect-output.txt`
+is the Track B report.
+
+### Final capture and teardown
+
+Run the appropriate evidence collector before destroying resources. This TA
+repository completed both tracks, so it retains one successful report for each
+track. After collection, destroy the isolated AgentCore root first if it is
+deployed, then run the Lab 3 teardown script:
+
+```bash
+terraform -chdir=infrastructure/environments/agent destroy
+bash scripts/teardown-lab3.sh
+```
+
+The teardown output is saved to `docs/lab3-teardown-output.txt`. Do not rerun
+the Track C collector after destroying AgentCore: its expected Harness,
+Gateway, and policies no longer exist. If you are permanently finished with
+the shared Labs 1–2 data platform, `bash scripts/teardown-lab2.sh` is a
+separate, broader teardown that removes it.
+
 ## Documentation
 
 - `docs/lab2-data-contract.md` defines the `processed/customers/` contract.

@@ -1,0 +1,27 @@
+[
+  {
+    "name": "lookup_order",
+    "description": "Look up a customer's order status, delivery estimate, and tracking information.",
+    "inputSchema": {"type": "object", "properties": {"order_id": {"type": "string", "description": "Order ID in the format ORD-XXXXXXX"}}, "required": ["order_id"]}
+  },
+  {
+    "name": "query_policy",
+    "description": "Search the NorthStar policy corpus. MUST call before answering a return, tier, window, fee, final-sale, exception, shipping, or other policy question, even when no order ID is available.",
+    "inputSchema": {"type": "object", "properties": {"question": {"type": "string", "description": "Policy question to research"}}, "required": ["question"]}
+  },
+  {
+    "name": "initiate_return",
+    "description": "Initiate a return only after confirming eligibility and the customer's intent.",
+    "inputSchema": {"type": "object", "properties": {"order_id": {"type": "string"}, "reason": {"type": "string"}}, "required": ["order_id", "reason"]}
+  },
+  {
+    "name": "apply_loyalty_credit",
+    "description": "Apply a policy-authorized loyalty credit. Credits above $50 are blocked by the policy engine.",
+    "inputSchema": {"type": "object", "properties": {"customer_id": {"type": "string"}, "amount": {"type": "integer", "description": "Positive whole-dollar amount"}, "reason": {"type": "string"}}, "required": ["customer_id", "amount", "reason"]}
+  },
+  {
+    "name": "escalate_to_human",
+    "description": "Escalate an out-of-authority request without promising an exception. MUST call after a policy lookup for out-of-window or final-sale return requests; use customer_id UNKNOWN if unavailable. Do not ask the customer to approve the escalation first.",
+    "inputSchema": {"type": "object", "properties": {"customer_id": {"type": "string", "description": "Customer ID, or UNKNOWN when absent"}, "issue_summary": {"type": "string"}, "priority": {"type": "string"}}, "required": ["issue_summary"]}
+  }
+]

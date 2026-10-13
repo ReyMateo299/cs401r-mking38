@@ -1,6 +1,11 @@
 # Lab 3 — Model Design Justification
 
-**Tracks completed:** Track A (Churn Prediction) and Track B (Offer Generation RAG)
+**Tracks completed:** Track A (Churn Prediction) and Track B (Offer Generation RAG).
+
+**TA extension:** Track C (Customer Service Agent) is also implemented and
+evaluated in this repository. Its evidence is kept separate from Track B;
+manual review findings are recorded in
+`docs/lab3-evidence/track-c-failures.md`.
 
 ## Churn model choice
 
@@ -80,6 +85,39 @@ recall remains limited by ground-truth claims that the policy corpus does not
 contain, and answer relevancy is ill-matched to an instruction-to-generate an
 offer rather than a customer question. The detailed evidence and limitations
 are in `docs/lab3-evidence/track-b-examples.md`.
+
+## Customer-service agent system choice (TA extension)
+
+For Track C, I chose an AgentCore Harness with an IAM-authenticated Gateway,
+a Lambda tool target, and a Cedar policy engine rather than a free-form chat
+pipeline. The customer requests require different actions: order lookup,
+policy retrieval, a bounded return workflow, a bounded credit workflow, and a
+human escalation. An agent can select an appropriate tool after reading the
+request, while the Gateway makes the tool boundary explicit and records the
+actual calls for review. A fixed intent router would be simpler and may be
+preferable for a small, stable menu, but it becomes brittle when a request
+combines a return, a policy exception, and an account concern.
+
+The primary production risk is an agent taking or implying an unauthorized
+action under customer pressure. For example, an empathetic reply to a
+final-sale return request can still be a policy failure if it suggests a human
+can make the exception. The active prompt requires policy retrieval and a
+clear refusal citing POL-RET-004 §4; the return tool independently rejects
+final-sale orders; and the Gateway's Cedar policy blocks a loyalty-credit tool
+call above $50 before Lambda can run. Those controls are intentionally
+redundant: the prompt guides ordinary behavior, tool code is defence in depth
+for implementation errors, and gateway enforcement is the only one of the
+three I would trust alone for an inviolable per-call authorization limit.
+
+The Cedar cap is not a complete cumulative-spend control. It sees the amount
+of one invocation, so two allowed $40 credits can total $80. A production
+solution needs a stateful ledger plus a transactionally checked cumulative
+limit, or an AgentCore temporal policy supplied with durable customer and
+session identity. The recorded policy test demonstrates the limitation: both
+$40 calls were allowed, while $51 and $75 single calls were denied. The
+evaluation's remaining nondeterministic escalation and final-sale wording
+issues are documented honestly in `track-c-failures.md` rather than presented
+as solved by the per-call cap.
 
 ## With 10× more time or data
 

@@ -21,15 +21,17 @@ policy-safe examples; they are reproduced verbatim rather than edited.
 ## Five policy-reviewed, generated input/output pairs
 
 Each profile below is taken from the supplied harness except the fifth, which
-is the documented local case. Document IDs identify the retrieved source
-documents shown in the saved local evidence; exact section/chunk IDs must be
-retained with the next generated capture.
+is the documented local case. The bullet for each example identifies the
+retrieved context sections that support its stated benefit. The full eight
+retrieved contexts per capture, including their document-and-section headers,
+are preserved verbatim in `track-b-generated-examples.json`.
 
 ### 1. Gold online Outdoor/Footwear customer — `CUST-10000317`
 
 - Input: 81% churn probability; feature-store tier Gold; 47 days since last
   purchase; top categories Outdoor and Footwear; mostly online.
-- Retrieved source document IDs: `POL-LOY-011`, `POL-RET-004`, `KB-FAQ-022`.
+- Supporting retrieved context: `POL-LOY-011 | 4. Tier Benefits` (Gold free
+  return shipping).
 - Generated offer (accepted):
 
   > Subject: Your Gold benefits are waiting
@@ -46,8 +48,9 @@ retained with the next generated capture.
 
 - Input: 74% churn probability; feature-store tier Bronze; 68 days since last
   purchase; Apparel only; mostly in store.
-- Retrieved source document IDs: `POL-LOY-011`, `POL-SHP-007`, `POL-RET-004`,
-  `KB-FAQ-022`.
+- Supporting retrieved contexts: `POL-LOY-011 | 4. Tier Benefits` and
+  `POL-SHP-007 | 2. Free Shipping Thresholds` (Bronze $75 free-standard-
+  shipping threshold); `KB-FAQ-022 | Returns` (400 locations).
 - Generated offer (accepted):
 
   > Subject: Your Bronze member benefits are waiting
@@ -66,8 +69,10 @@ retained with the next generated capture.
 
 - Input: 66% churn probability; feature-store tier Platinum; average order
   value $447; categories Outdoor, Electronics, and Home; both channels.
-- Retrieved source document IDs: `POL-LOY-011`, `POL-SHP-007`, `POL-RET-004`,
-  `KB-FAQ-022`.
+- Supporting retrieved context: `POL-LOY-011 | 4. Tier Benefits` (unlimited
+  Platinum gear repair). The capture also retrieved `POL-LOY-011 | 4.1 Annual
+  Gear Credit`, which is why the review explicitly checks that the answer does
+  not claim the credit is available.
 - Generated offer (accepted):
 
   > Subject: Your Platinum benefits are waiting
@@ -84,8 +89,9 @@ retained with the next generated capture.
 
 - Input: 70% churn probability; feature-store tier Silver; lifetime value
   $1,985; categories Home and Beauty; mostly online.
-- Retrieved source document IDs: `POL-LOY-011`, `POL-SHP-007`, `POL-RET-004`,
-  `KB-FAQ-022`.
+- Supporting retrieved contexts: `POL-LOY-011 | 4. Tier Benefits` and
+  `POL-SHP-007 | 2. Free Shipping Thresholds` (Silver benefits and the $50
+  free-standard-shipping threshold).
 - Generated offer (accepted):
 
   > Subject: Your Silver Member Benefits Are Ready to Use
@@ -103,8 +109,9 @@ retained with the next generated capture.
 
 - Input: at-risk Bronze member; shops in store; top categories Grocery and
   Apparel.
-- Retrieved source document IDs: `POL-LOY-011`, `POL-SHP-007`, `POL-RET-004`,
-  `KB-FAQ-022`.
+- Supporting retrieved contexts: `POL-LOY-011 | 4. Tier Benefits` and
+  `POL-SHP-007 | 2. Free Shipping Thresholds` (Bronze $75 free-standard-
+  shipping threshold).
 - Generated offer (accepted):
 
   > Subject: Your Bronze Member Benefits Are Ready to Use
