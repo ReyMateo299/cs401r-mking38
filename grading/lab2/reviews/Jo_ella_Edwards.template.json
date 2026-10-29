@@ -1,0 +1,292 @@
+{
+  "review_type": "llm",
+  "student_id": "Jo_ella_Edwards",
+  "reviewer": "",
+  "canvas_summary": "",
+  "review_notes": [],
+  "verification_fail_reviewed": null,
+  "verification_fail_reason": "",
+  "teardown_evidence": "auto",
+  "confirmed_secret": null,
+  "scores": {
+    "T1.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 9.0,
+        "needs_review": true,
+        "flags": [
+          "Private route to NAT and subnet association not established"
+        ],
+        "evidence": [
+          "infrastructure/modules/vpc/main.tf:29",
+          "infrastructure/modules/vpc/main.tf:43",
+          "infrastructure/modules/vpc/main.tf:89",
+          "infrastructure/modules/sagemaker/main.tf:21"
+        ]
+      }
+    },
+    "T1.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 8.0,
+        "needs_review": true,
+        "flags": [
+          "Review effective IAM scope and trust per role; string matches are only structural signals"
+        ],
+        "evidence": [
+          "infrastructure/modules/iam/main.tf:28"
+        ]
+      }
+    },
+    "T1.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/storage/main.tf:62"
+        ]
+      }
+    },
+    "T1.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 1,
+        "needs_review": true,
+        "flags": [
+          "Three IAM roles not evidenced in LocalStack output",
+          "LocalStack VPC and NAT guard/absence not established"
+        ],
+        "evidence": [
+          "docs/lab2-localstack-output.txt"
+        ]
+      }
+    },
+    "T2.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 6.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/glue/main.tf:1",
+          "infrastructure/modules/glue/main.tf:5",
+          "docs/lab2-verify-output.txt"
+        ]
+      }
+    },
+    "T2.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 12.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "glue-scripts/transform.py:45",
+          "glue-scripts/transform.py:89",
+          "glue-scripts/transform.py:113"
+        ]
+      }
+    },
+    "T2.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/glue/outputs.tf:1",
+          "docs/lab2-extend-output.txt"
+        ]
+      }
+    },
+    "T2.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 3.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "docs/lab2-verify-output.txt"
+        ]
+      }
+    },
+    "T3.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 10.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "glue-scripts/feature_engineer.py:61",
+          "glue-scripts/feature_engineer.py:76",
+          "glue-scripts/feature_engineer.py:134",
+          "glue-scripts/feature_engineer.py:155",
+          "glue-scripts/feature_engineer.py:179"
+        ]
+      }
+    },
+    "T3.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "glue-scripts/feature_engineer.py:61",
+          "glue-scripts/feature_engineer.py:76",
+          "glue-scripts/feature_engineer.py:179"
+        ]
+      }
+    },
+    "T3.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 1.5,
+        "needs_review": true,
+        "flags": [
+          "Feature definitions/types incomplete (0/16 parsed)"
+        ],
+        "evidence": [
+          "infrastructure/modules/feature_store/main.tf:23"
+        ]
+      }
+    },
+    "T3.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 0,
+        "needs_review": true,
+        "flags": [
+          "Latest committed verifier result for feature-engineer job is not PASS"
+        ],
+        "evidence": []
+      }
+    },
+    "T4.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 8.0,
+        "needs_review": true,
+        "flags": [
+          "TA must assess schema, measurable guarantees, numeric SLA and breaking-change policy"
+        ],
+        "evidence": [
+          "docs/lab2-data-contract.md"
+        ]
+      }
+    },
+    "T4.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 7.0,
+        "needs_review": true,
+        "flags": [
+          "TA must inspect flow nodes, formats on edges, and IAM roles on write edges"
+        ],
+        "evidence": [
+          "docs/lab2-data-lineage.png"
+        ]
+      }
+    },
+    "T5.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/glue/main.tf:1",
+          "infrastructure/modules/feature_store/main.tf:23",
+          "infrastructure/environments/local/main.tf:9"
+        ]
+      }
+    },
+    "T5.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 3.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/glue/main.tf:1"
+        ]
+      }
+    },
+    "T5.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 1.5,
+        "needs_review": true,
+        "flags": [
+          "terraform fmt -check did not pass"
+        ],
+        "evidence": [
+          "submitted validation log"
+        ]
+      }
+    },
+    "T5.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 3.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "docs/lab2-extend-output.txt"
+        ]
+      }
+    },
+    "T5.5": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 0,
+        "needs_review": true,
+        "flags": [
+          "README does not describe Lab 2 modules",
+          "README does not explain the end-to-end pipeline sequence"
+        ],
+        "evidence": []
+      }
+    }
+  }
+}

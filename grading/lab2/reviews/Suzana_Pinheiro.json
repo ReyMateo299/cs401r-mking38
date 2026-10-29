@@ -1,0 +1,200 @@
+{
+  "review_type": "llm",
+  "student_id": "Suzana_Pinheiro",
+  "reviewer": "Codex LLM-assisted source, written-work, and submitted-evidence review; TA verification pending",
+  "canvas_summary": "The newly uploaded ETL scripts meet the source-level Task 2 and Task 3 requirements. Remaining deductions are for IAM boundaries, lifecycle durations, lineage labels, and README content.",
+  "review_notes": [
+    "Applied the TA-supplied older Task 2.3 criterion: grade the Glue module and clean crawler/job apply; do not deduct this row for a private connection or separately committed script source.",
+    "TA regrade applies the no-saved-output rule to T3.4 as well: no deduction solely for the absent feature job-run file when the job is configured and apply completed; runtime status remains unverified offline.",
+    "Restored the remaining T1.4 point because the LocalStack Terraform apply created all three IAM roles and the VPC with NAT disabled; the later awslocal verification could not run because awslocal was not installed.",
+    "Restored the T1.1 point deducted for the missing self-referencing security-group ingress: the scored T1.1 criterion is private subnet, NAT, and Domain relocation, and the TA-supplied older Task 2.3 rubric excludes private Glue networking from that score.",
+    "Regraded Task 2 and Task 3 after the Python sources were added. Static review awards full T2.2, T3.1, and T3.2 credit: types/date parsing, median and unknown imputation, transaction_id deduplication, fixed observation/outcome windows, customer-level RFM, tiers, bounded churn proxy, and outcome-derived label are implemented. T3.4 remains full under the TA no-saved-output ruling because the feature job is configured and the submitted apply completed; no AWS job was run as part of this regrade.",
+    "Deployment follow-up: glue-scripts/transform.py and glue-scripts/feature_engineer.py are present, but infrastructure/modules/glue/main.tf references cs401r-lab2-template/glue-scripts/ for both source and filemd5. That directory is absent in the current repo; a fresh apply may fail or not use these newly added files. This is reported as implementation feedback and did not reduce the source-code rubric rows."
+  ],
+  "verification_fail_reviewed": false,
+  "verification_fail_reason": "",
+  "teardown_evidence": "auto",
+  "confirmed_secret": false,
+  "scores": {
+    "T1.1": {
+      "score": 10,
+      "reason": "The submitted source and verification evidence establish the private subnet, guarded NAT, and SageMaker Domain relocation required for T1.1. The missing self-referencing ingress is not included in this scored criterion, and private Glue networking is excluded under the TA-supplied older Task 2.3 rubric.",
+      "evidence": [
+        "infrastructure/modules/vpc/main.tf",
+        "infrastructure/modules/sagemaker/main.tf",
+        "infrastructure/modules/vpc/main.tf:44",
+        "infrastructure/modules/sagemaker/main.tf:22"
+      ]
+    },
+    "T1.2": {
+      "score": 4,
+      "reason": "All three roles exist, but MLEngineer can write processed/ and DataEngineer can write artifacts/glue/; those grants exceed the handout's required write boundaries.",
+      "evidence": [
+        "infrastructure/modules/iam/main.tf:87",
+        "infrastructure/modules/iam/main.tf:168",
+        "infrastructure/modules/iam/main.tf:179",
+        "infrastructure/modules/iam/main.tf",
+        "infrastructure/modules/iam/main.tf:21"
+      ]
+    },
+    "T1.3": {
+      "score": 0,
+      "reason": "Five lifecycle rules are present, but every retention period differs from the required 90/30/30/60/7-day values.",
+      "evidence": [
+        "infrastructure/modules/storage/main.tf:68",
+        "infrastructure/modules/storage/main.tf:77",
+        "infrastructure/modules/storage/main.tf:90",
+        "infrastructure/modules/storage/main.tf:103",
+        "infrastructure/modules/storage/main.tf:116",
+        "infrastructure/modules/storage/main.tf:129",
+        "infrastructure/modules/storage/main.tf",
+        "infrastructure/modules/storage/main.tf:64"
+      ]
+    },
+    "T1.4": {
+      "score": 3,
+      "reason": "The LocalStack Terraform apply completed, creating all three IAM roles and the VPC; the local environment disables NAT. The subsequent awslocal verification stopped only because the awslocal executable was unavailable.",
+      "evidence": [
+        "infrastructure/environments/local/main.tf:13",
+        "docs/lab2-localstack-output.txt:864",
+        "docs/lab2-localstack-output.txt:917",
+        "infrastructure/environments/local/main.tf",
+        "docs/lab2-localstack-output.txt"
+      ]
+    },
+    "T2.1": {
+      "score": 6,
+      "reason": "The Terraform configuration defines the catalog database and raw/customers crawler. Under the older rubric supplied by the TA, get-table had to return a schema, but saving its output was not required. The absent verifier file alone is not deducted; the historical table result cannot be independently confirmed offline.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf"
+      ]
+    },
+    "T2.2": {
+      "score": 12,
+      "reason": "The newly submitted transform.py casts the nine schema fields, trims and converts blanks to nulls, parses ISO and MM/dd/yyyy dates, drops null customer IDs, imputes numeric medians and string unknowns, and deduplicates by transaction_id with an ordering rule. Source-level requirements are met.",
+      "evidence": [
+        "glue-scripts/transform.py:25",
+        "glue-scripts/transform.py:49",
+        "glue-scripts/transform.py:93",
+        "glue-scripts/transform.py:122"
+      ]
+    },
+    "T2.3": {
+      "score": 4,
+      "reason": "The Glue module defines the crawler and transform job, and the committed extension log shows a clean apply creating the crawler and jobs. Under the older rubric supplied by the TA, this row scores module presence and a clean crawler/job apply; script source/upload and private NETWORK connection are outside this row.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf:1",
+        "docs/lab2-extend-output.txt:587"
+      ]
+    },
+    "T2.4": {
+      "score": 3,
+      "reason": "The Terraform configuration defines the transform job and the saved apply log records a clean apply. The older rubric required get-job-run to return SUCCEEDED but did not require saving that output. No verifier result is available to independently confirm the historical run; absence of the output file alone is not deducted.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T3.1": {
+      "score": 10,
+      "reason": "The newly submitted feature_engineer.py implements the five required stages: fixed temporal split, customer-level RFM aggregates, loyalty tiers, bounded scaled churn proxy, and label derived from holdout activity. It also checks nulls, risk bounds, tier coverage, and output writing. Source-level feature requirements are met.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py:63",
+        "glue-scripts/feature_engineer.py:81",
+        "glue-scripts/feature_engineer.py:134",
+        "glue-scripts/feature_engineer.py:154",
+        "glue-scripts/feature_engineer.py:176",
+        "glue-scripts/feature_engineer.py:276"
+      ]
+    },
+    "T3.2": {
+      "score": 4,
+      "reason": "The feature script uses fixed FEATURE_CUTOFF and SNAPSHOT dates, computes features from history at or before the cutoff, and derives churn_label only from purchases in the subsequent outcome window. This establishes the required temporal separation statically; no AWS output was run during this regrade.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py:46",
+        "glue-scripts/feature_engineer.py:63",
+        "glue-scripts/feature_engineer.py:176"
+      ]
+    },
+    "T3.3": {
+      "score": 3,
+      "reason": "The Terraform Feature Group defines all 16 required names and types, including Fractional event_time and Integral churn_label, with online and offline stores.",
+      "evidence": [
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/feature_store/main.tf:1"
+      ]
+    },
+    "T3.4": {
+      "score": 3,
+      "reason": "The Terraform module defines the feature-engineering job, and the saved apply log shows a clean apply. Under the TA direction applying the legacy no-saved-output rule to T3.4, absence of a committed feature job-run result is not deducted. The historical SUCCEEDED state is not independently verifiable offline.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T4.1": {
+      "score": 8,
+      "reason": "The contract identifies producer and consumers, states transaction grain, lists nine typed columns with nullability, at least three measurable guarantees, a two-hour freshness target, and a new-prefix/five-business-day breaking-change policy.",
+      "evidence": [
+        "docs/lab2-data-contract.md",
+        "docs/lab2-data-contract.md:10",
+        "docs/lab2-data-contract.md:13",
+        "docs/lab2-data-contract.md:26",
+        "docs/lab2-data-contract.md:32",
+        "docs/lab2-data-contract.md:35"
+      ]
+    },
+    "T4.2": {
+      "score": 4,
+      "reason": "The diagram includes the major source-to-Feature-Store nodes and CSV/Parquet/PutRecord labels, but none of its write edges identifies the IAM writer.",
+      "evidence": [
+        "docs/lab2-data-lineage.png"
+      ]
+    },
+    "T5.1": {
+      "score": 4,
+      "reason": "Glue and Feature Store have separate Terraform modules wired from the dev environment without conflicting duplicate resources.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:2",
+        "infrastructure/modules/feature_store/main.tf:1",
+        "infrastructure/environments/local/main.tf:9"
+      ]
+    },
+    "T5.2": {
+      "score": 3,
+      "reason": "New Glue and Feature Store resource names use project/environment variables or module inputs instead of fixed deployed names.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:2"
+      ]
+    },
+    "T5.3": {
+      "score": 3,
+      "reason": "The offline Terraform format check passed, and the committed successful apply provides historical configuration evidence without accessing AWS.",
+      "evidence": [
+        "infrastructure",
+        "docs/lab2-extend-output.txt",
+        "infrastructure/",
+        "submitted validation log"
+      ]
+    },
+    "T5.4": {
+      "score": 3,
+      "reason": "The committed extension log records a successful Terraform apply involving the SageMaker Domain.",
+      "evidence": [
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T5.5": {
+      "score": 0,
+      "reason": "The README contains only a title, with no Lab 2 additions or run sequence.",
+      "evidence": [
+        "README.md:1",
+        "README.md"
+      ]
+    }
+  }
+}

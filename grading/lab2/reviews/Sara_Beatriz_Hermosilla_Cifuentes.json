@@ -1,0 +1,200 @@
+{
+  "review_type": "llm",
+  "student_id": "Sara_Beatriz_Hermosilla_Cifuentes",
+  "reviewer": "Codex LLM-assisted source, written-work, and submitted-evidence review; TA verification pending",
+  "canvas_summary": "I reviewed your Terraform, Python, written artifacts, and saved Lab 2 evidence. The deductions below identify the gaps found in the submitted work.",
+  "review_notes": [
+    "Git history contains LocalStack server.test.pem and server.test.pem.key files. They are local test certificates, not confirmed AWS credentials; no confirmed-secret override was applied. TA may verify their origin.",
+    "Applied the TA-supplied older Task 2.3 criterion: grade the Glue module and clean crawler/job apply; do not deduct this row for a private connection or separately committed script source."
+  ],
+  "verification_fail_reviewed": false,
+  "verification_fail_reason": "",
+  "teardown_evidence": "auto",
+  "confirmed_secret": false,
+  "scores": {
+    "T1.1": {
+      "score": 9,
+      "reason": "Private routing, NAT, and VpcOnly are present, but the security group has no self-referencing all-protocol ingress for private Glue worker communication.",
+      "evidence": [
+        "infrastructure/modules/vpc/main.tf:82",
+        "infrastructure/modules/vpc/main.tf:105",
+        "infrastructure/modules/vpc/main.tf",
+        "infrastructure/modules/sagemaker/main.tf",
+        "infrastructure/modules/vpc/main.tf:22",
+        "infrastructure/modules/vpc/main.tf:69",
+        "infrastructure/modules/sagemaker/main.tf:16"
+      ]
+    },
+    "T1.2": {
+      "score": 8,
+      "reason": "The three execution roles and their scoped S3/service policies are present; MLEngineer is limited to feature/artifact writes, DataEngineer to data-prefix writes with script reads, and ModelMonitor to observation.",
+      "evidence": [
+        "infrastructure/modules/iam/main.tf",
+        "infrastructure/modules/iam/main.tf:33"
+      ]
+    },
+    "T1.3": {
+      "score": 4,
+      "reason": "The storage source defines the five required raw, processed, feature, and datacapture retention rules with the assigned durations.",
+      "evidence": [
+        "infrastructure/modules/storage/main.tf",
+        "infrastructure/modules/storage/main.tf:66"
+      ]
+    },
+    "T1.4": {
+      "score": 3,
+      "reason": "The local environment disables NAT, and the submitted LocalStack output supports the VPC, three IAM roles, and a successful local apply.",
+      "evidence": [
+        "infrastructure/environments/local/main.tf",
+        "docs/lab2-localstack-output.txt"
+      ]
+    },
+    "T2.1": {
+      "score": 6,
+      "reason": "The DataEngineer crawler targets raw/customers in the northstar_dev database, and the submitted verifier reports a registered customers table.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/glue/main.tf:44",
+        "infrastructure/modules/glue/main.tf:48",
+        "docs/lab2-verify-output.txt",
+        "docs/lab2-verify-output.txt:19"
+      ]
+    },
+    "T2.2": {
+      "score": 12,
+      "reason": "The transform implements typed casting and both date formats, null-ID filtering, median and unknown imputation, and deterministic transaction_id deduplication; saved data checks support transaction grain.",
+      "evidence": [
+        "glue-scripts/transform.py",
+        "glue-scripts/transform.py:45",
+        "glue-scripts/transform.py:95",
+        "glue-scripts/transform.py:121",
+        "docs/lab2-verify-output.txt:22",
+        "docs/lab2-verify-output.txt:26"
+      ]
+    },
+    "T2.3": {
+      "score": 4,
+      "reason": "The Glue module defines the crawler and jobs, and the committed apply output shows those resources created with Apply complete. Under the older rubric supplied by the TA, this row scores module presence and a clean crawler/job apply; the private NETWORK connection criterion is outside this row.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf:44",
+        "docs/lab2-extend-output.txt:1319",
+        "docs/lab2-extend-output.txt:1382"
+      ]
+    },
+    "T2.4": {
+      "score": 3,
+      "reason": "The committed verifier reports the transform job SUCCEEDED and processed/customers Parquet output.",
+      "evidence": [
+        "docs/lab2-verify-output.txt",
+        "docs/lab2-verify-output.txt:20",
+        "docs/lab2-verify-output.txt:22"
+      ]
+    },
+    "T3.1": {
+      "score": 10,
+      "reason": "The feature script implements the five required functions, customer-level RFM, tiers, bounded churn proxy, and outcome-window label; the saved output checks support feature completeness.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py",
+        "glue-scripts/feature_engineer.py:56",
+        "glue-scripts/feature_engineer.py:85",
+        "glue-scripts/feature_engineer.py:210",
+        "glue-scripts/feature_engineer.py:236",
+        "glue-scripts/feature_engineer.py:299"
+      ]
+    },
+    "T3.2": {
+      "score": 4,
+      "reason": "The code anchors features to the fixed observation cutoff and derives the label from later purchases; saved checks support the temporal separation.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py",
+        "glue-scripts/feature_engineer.py:56",
+        "glue-scripts/feature_engineer.py:85",
+        "glue-scripts/feature_engineer.py:299",
+        "docs/lab2-verify-output.txt:33",
+        "docs/lab2-verify-output.txt:34"
+      ]
+    },
+    "T3.3": {
+      "score": 3,
+      "reason": "The Feature Group source defines 16 names and types, including Fractional event_time and Integral churn_label, via explicit or dynamic blocks; online and offline stores are configured.",
+      "evidence": [
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/feature_store/main.tf:2",
+        "docs/lab2-verify-output.txt:40",
+        "docs/lab2-verify-output.txt:45"
+      ]
+    },
+    "T3.4": {
+      "score": 3,
+      "reason": "The committed verifier reports the feature-engineering job SUCCEEDED, feature Parquet, and a returned Feature Store record.",
+      "evidence": [
+        "docs/lab2-verify-output.txt",
+        "docs/lab2-verify-output.txt:21",
+        "docs/lab2-verify-output.txt:45"
+      ]
+    },
+    "T4.1": {
+      "score": 8,
+      "reason": "The contract identifies producer and consumers, states transaction grain, lists nine typed columns with nullability, at least three measurable guarantees, a two-hour freshness target, and a new-prefix/five-business-day breaking-change policy.",
+      "evidence": [
+        "docs/lab2-data-contract.md",
+        "docs/lab2-data-contract.md:12",
+        "docs/lab2-data-contract.md:16",
+        "docs/lab2-data-contract.md:28",
+        "docs/lab2-data-contract.md:39",
+        "docs/lab2-data-contract.md:43"
+      ]
+    },
+    "T4.2": {
+      "score": 0,
+      "reason": "The submitted PNG shows only the transform job; the required source-to-Feature-Store flow, formats, and IAM write roles are absent.",
+      "evidence": [
+        "docs/lab2-data-lineage.png"
+      ]
+    },
+    "T5.1": {
+      "score": 4,
+      "reason": "Glue and Feature Store have separate Terraform modules wired from the dev environment without conflicting duplicate resources.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:1",
+        "infrastructure/modules/feature_store/main.tf:2",
+        "infrastructure/environments/local/main.tf:9"
+      ]
+    },
+    "T5.2": {
+      "score": 3,
+      "reason": "New Glue and Feature Store resource names use project/environment variables or module inputs instead of fixed deployed names.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:1"
+      ]
+    },
+    "T5.3": {
+      "score": 1,
+      "reason": "The local terraform fmt check fails; the successful committed apply does not satisfy the handout's clean fmt and validate criterion.",
+      "evidence": [
+        "infrastructure",
+        "docs/lab2-extend-output.txt",
+        "submitted validation log"
+      ]
+    },
+    "T5.4": {
+      "score": 3,
+      "reason": "The committed extension log records a successful Terraform apply involving the SageMaker Domain.",
+      "evidence": [
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T5.5": {
+      "score": 0,
+      "reason": "The README has only a title and no Lab 2 module or pipeline instructions.",
+      "evidence": [
+        "README.md:1",
+        "README.md"
+      ]
+    }
+  }
+}

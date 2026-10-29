@@ -1,33 +1,52 @@
 # Lab 3 instruction suggestions
 
-## Track C teardown handout promises an AgentCore destroy that the script does not perform
+## Resolved: Track C teardown now destroys and verifies AgentCore resources
 
-**Finding (2026-10-13, verified from the supplied script):** The Track C
-teardown guidance says `scripts/teardown-lab3.sh` destroys the AgentCore
-Terraform stack. The current script only deletes SageMaker endpoints/configs,
-stops in-flight SageMaker jobs, checks MLflow Tracking Servers, and writes the
-teardown log. It contains no `terraform` command and no AgentCore Gateway,
-Harness, policy-engine, Lambda, IAM-role, or CloudWatch-log cleanup.
+**Original finding (2026-10-13):** The prior `teardown-lab3.sh` removed only
+SageMaker endpoints/jobs and left the separate AgentCore Terraform root live,
+even though the handout said it destroyed AgentCore.
 
-**Why this can cost students money:** A student who follows the handout can
-receive a successful general teardown message while the AgentCore Harness and
-related resources still exist. The Harness has no traffic after evaluation,
-but leaving the live stack behind is contrary to the lab's cost-control and
-cleanup requirement.
+**Resolution verified against the refreshed instructor starter kit
+(2026-10-16):** The current script now runs Terraform destroy for
+`infrastructure/environments/agent/` when initialized, deletes the Harness
+runtime log group that Terraform does not own, and verifies zero AgentCore
+Harnesses, Gateways, policy engines, and runtimes in addition to its SageMaker
+checks. The handout and TA grading guide now describe the same behavior.
+
+**Remaining distribution risk:** Students who copied the earlier script will
+not receive the fix by pulling only guide files. The starter-kit update should
+be announced explicitly: refresh `scripts/teardown-lab3.sh` before submission,
+run the Track C evidence collector first, and let the AgentCore destroy finish
+(about five minutes). The student tips now make that distinction.
+
+**Belongs in:** Instructor notes and student tips (as a version-awareness tip,
+not an active handout defect).
+
+## PowerShell `tee` can make a valid Athena log unreadable to the evidence collector
+
+**Finding (2026-10-16, verified from the current guide and starter collector):**
+The handout gives a Bash capture pattern, `2>&1 | tee
+docs/lab3-evidence/train-final.log`. In Windows PowerShell 5.1, `tee` maps to
+`Tee-Object` and can write UTF-16LE. The current collector reads the log with
+Python's platform-default text encoding and searches it with the literal ASCII
+regex `Athena QueryExecutionId:\s*([0-9a-f-]{36})`. A UTF-16 log can display
+the line correctly in an IDE but contains NUL bytes between the characters, so
+the regex fails.
+
+**Why it can confuse or block students:** A student can have run the required
+Athena query and visibly saved the query ID, yet receive `FAIL Athena query --
+no 'Athena QueryExecutionId: <id>' line`. Editing or hardcoding the visible
+text does not repair its encoding. This is especially misleading because the
+failure resembles a missing Task A implementation rather than a shell/IDE
+compatibility issue.
 
 **Belongs in:** Both instructor notes and student tips.
 
-**Suggested revision:** Either add the AgentCore destroy to
-`teardown-lab3.sh`, or change the handout to require it explicitly before the
-script:
-
-```bash
-terraform -chdir=infrastructure/environments/agent destroy
-bash scripts/teardown-lab3.sh
-```
-
-State that the evidence collector must run first, because it exports the
-Harness, Gateway, and Cedar policies that no longer exist after destroy.
+**Suggested revision:** Make the collector decode BOM-marked UTF-16 logs before
+applying the regex, and otherwise read UTF-8 (including UTF-8 with BOM). Add a
+short PowerShell note to the handout: use PowerShell 7/UTF-8 output or convert
+the saved log to UTF-8 before collection. Keep the Athena API lookup after the
+regex; students must not be told to hardcode an arbitrary query ID.
 
 ## Track C escalation schema conflicts with required scenarios that omit an account ID
 

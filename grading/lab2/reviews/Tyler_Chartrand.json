@@ -1,0 +1,195 @@
+{
+  "review_type": "llm",
+  "student_id": "Tyler_Chartrand",
+  "reviewer": "Codex LLM-assisted source, written-work, and submitted-evidence review; TA verification pending",
+  "canvas_summary": "I reviewed your Terraform, Python, written artifacts, and saved Lab 2 evidence. The deductions below identify the gaps found in the submitted work.",
+  "review_notes": [],
+  "verification_fail_reviewed": false,
+  "verification_fail_reason": "",
+  "teardown_evidence": "auto",
+  "confirmed_secret": false,
+  "scores": {
+    "T1.1": {
+      "score": 10,
+      "reason": "The VPC source defines public and private subnets, a guarded NAT gateway and private route; the SageMaker Domain is wired to the private subnet with VpcOnly.",
+      "evidence": [
+        "infrastructure/modules/vpc/main.tf",
+        "infrastructure/modules/sagemaker/main.tf",
+        "infrastructure/modules/vpc/main.tf:57",
+        "infrastructure/modules/vpc/main.tf:93",
+        "infrastructure/modules/vpc/main.tf:156",
+        "infrastructure/modules/sagemaker/main.tf:20"
+      ]
+    },
+    "T1.2": {
+      "score": 8,
+      "reason": "The three execution roles and their scoped S3/service policies are present; MLEngineer is limited to feature/artifact writes, DataEngineer to data-prefix writes with script reads, and ModelMonitor to observation.",
+      "evidence": [
+        "infrastructure/modules/iam/main.tf",
+        "infrastructure/modules/iam/main.tf:113"
+      ]
+    },
+    "T1.3": {
+      "score": 4,
+      "reason": "The storage source defines the five required raw, processed, feature, and datacapture retention rules with the assigned durations.",
+      "evidence": [
+        "infrastructure/modules/storage/main.tf",
+        "infrastructure/modules/storage/main.tf:68"
+      ]
+    },
+    "T1.4": {
+      "score": 3,
+      "reason": "The local environment disables NAT, and the submitted LocalStack output supports the VPC, three IAM roles, and a successful local apply.",
+      "evidence": [
+        "infrastructure/environments/local/main.tf",
+        "docs/lab2-localstack-output.txt"
+      ]
+    },
+    "T2.1": {
+      "score": 6,
+      "reason": "The DataEngineer crawler targets raw/customers in the northstar_dev database, and the submitted verifier reports a registered customers table.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/glue/main.tf:43",
+        "docs/lab2-verify-output.txt",
+        "docs/lab2-verify-output.txt:19"
+      ]
+    },
+    "T2.2": {
+      "score": 12,
+      "reason": "The transform implements typed casting and both date formats, null-ID filtering, median and unknown imputation, and deterministic transaction_id deduplication; saved data checks support transaction grain.",
+      "evidence": [
+        "glue-scripts/transform.py",
+        "glue-scripts/transform.py:45",
+        "glue-scripts/transform.py:97",
+        "glue-scripts/transform.py:128",
+        "docs/lab2-verify-output.txt:22",
+        "docs/lab2-verify-output.txt:26"
+      ]
+    },
+    "T2.3": {
+      "score": 4,
+      "reason": "The Glue module wires the crawler, private connection, both jobs, and Terraform-managed script uploads; the submitted apply completed.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "docs/lab2-extend-output.txt",
+        "infrastructure/modules/glue/outputs.tf:4"
+      ]
+    },
+    "T2.4": {
+      "score": 3,
+      "reason": "The committed verifier reports the transform job SUCCEEDED and processed/customers Parquet output.",
+      "evidence": [
+        "docs/lab2-verify-output.txt",
+        "docs/lab2-verify-output.txt:20",
+        "docs/lab2-verify-output.txt:22"
+      ]
+    },
+    "T3.1": {
+      "score": 10,
+      "reason": "The feature script implements the five required functions, customer-level RFM, tiers, bounded churn proxy, and outcome-window label; the saved output checks support feature completeness.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py",
+        "glue-scripts/feature_engineer.py:61",
+        "glue-scripts/feature_engineer.py:84",
+        "glue-scripts/feature_engineer.py:170",
+        "glue-scripts/feature_engineer.py:193",
+        "glue-scripts/feature_engineer.py:236"
+      ]
+    },
+    "T3.2": {
+      "score": 4,
+      "reason": "The code anchors features to the fixed observation cutoff and derives the label from later purchases; saved checks support the temporal separation.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py",
+        "glue-scripts/feature_engineer.py:61",
+        "glue-scripts/feature_engineer.py:84",
+        "glue-scripts/feature_engineer.py:236",
+        "docs/lab2-verify-output.txt:33",
+        "docs/lab2-verify-output.txt:34"
+      ]
+    },
+    "T3.3": {
+      "score": 3,
+      "reason": "The Feature Group source defines 16 names and types, including Fractional event_time and Integral churn_label, via explicit or dynamic blocks; online and offline stores are configured.",
+      "evidence": [
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/feature_store/main.tf:48",
+        "docs/lab2-verify-output.txt:40",
+        "docs/lab2-verify-output.txt:45"
+      ]
+    },
+    "T3.4": {
+      "score": 3,
+      "reason": "The committed verifier reports the feature-engineering job SUCCEEDED, feature Parquet, and a returned Feature Store record.",
+      "evidence": [
+        "docs/lab2-verify-output.txt",
+        "docs/lab2-verify-output.txt:21",
+        "docs/lab2-verify-output.txt:45"
+      ]
+    },
+    "T4.1": {
+      "score": 8,
+      "reason": "The contract identifies producer and consumers, states transaction grain, lists nine typed columns with nullability, at least three measurable guarantees, a two-hour freshness target, and a new-prefix/five-business-day breaking-change policy.",
+      "evidence": [
+        "docs/lab2-data-contract.md",
+        "docs/lab2-data-contract.md:27",
+        "docs/lab2-data-contract.md:37",
+        "docs/lab2-data-contract.md:53",
+        "docs/lab2-data-contract.md:79",
+        "docs/lab2-data-contract.md:93"
+      ]
+    },
+    "T4.2": {
+      "score": 6,
+      "reason": "The diagram shows the source, raw S3, Catalog, both jobs, both data outputs, and Feature Store with formats and writer roles, but omits the Glue Crawler as a distinct node.",
+      "evidence": [
+        "docs/lab2-data-lineage.png"
+      ]
+    },
+    "T5.1": {
+      "score": 4,
+      "reason": "Glue and Feature Store have separate Terraform modules wired from the dev environment without conflicting duplicate resources.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:43",
+        "infrastructure/modules/feature_store/main.tf:48",
+        "infrastructure/scratch/hello-terraform/local/main.tf:1"
+      ]
+    },
+    "T5.2": {
+      "score": 3,
+      "reason": "New Glue and Feature Store resource names use project/environment variables or module inputs instead of fixed deployed names.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:43"
+      ]
+    },
+    "T5.3": {
+      "score": 3,
+      "reason": "The offline Terraform format check passed, and the committed successful apply provides historical configuration evidence without accessing AWS.",
+      "evidence": [
+        "infrastructure",
+        "docs/lab2-extend-output.txt",
+        "infrastructure/",
+        "submitted validation log"
+      ]
+    },
+    "T5.4": {
+      "score": 3,
+      "reason": "The committed extension log records a successful Terraform apply involving the SageMaker Domain.",
+      "evidence": [
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T5.5": {
+      "score": 2,
+      "reason": "The README describes the Lab 2 modules and gives a usable end-to-end pipeline and verification sequence.",
+      "evidence": [
+        "README.md"
+      ]
+    }
+  }
+}

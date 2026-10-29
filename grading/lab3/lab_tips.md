@@ -1,10 +1,80 @@
-# Lab 3 student tips
+# Lab 3 student tips and troubleshooting guide
 
-## Before creating the MLflow App, check that your infrastructure is still up
+This is a practical companion to the Lab 3 handout and starter kit. Start with
+the question that matches where you are stuck, then read the linked section.
+The current Lab 3 handout is the grading authority; these tips explain common
+setup, evidence, and platform issues without replacing it.
 
-The MLflow App is not self-contained: it needs an S3 artifact location and a SageMaker execution role. In this course, both come from the Terraform stack you built in Labs 1–2. If you destroyed that stack, re-apply it before running the MLflow command (and make sure the Lab 2 Feature Group has been populated).
+## Quick route: where should I start?
 
-Use Terraform outputs rather than guessing your bucket or role names:
+| If your question is… | Go to… |
+|---|---|
+| “What am I building, and which track should I choose?” | [Lab map and prerequisites](#lab-map-and-prerequisites) |
+| “Where do the starter-kit files belong?” | [Place the starter kit correctly](#place-the-starter-kit-correctly) |
+| “Can I start if I tore down Lab 2?” | [Check the Labs 1–2 platform first](#check-the-labs-12-platform-first) |
+| “Which packages or tools do I need?” | [Set up a compatible local environment](#set-up-a-compatible-local-environment) |
+| “Athena returned zero rows / Feature Store is empty.” | [Fix Task A data-access problems](#fix-task-a-data-access-problems) |
+| “`train_test_split` throws a pandas 3 error.” | [Fix Task A data-access problems](#fix-task-a-data-access-problems) |
+| “How do aggregate metrics and tier slices fit together?” | [Complete Task A correctly](#complete-task-a-correctly) |
+| “How do I run and interpret Track B RAGAS?” | [Complete Track B: offer-generation RAG](#complete-track-b-offer-generation-rag) |
+| “RAGAS returned `NaN` or `LLMDidNotFinishException`.” | [Complete Track B: offer-generation RAG](#complete-track-b-offer-generation-rag) |
+| “What does Track C need, and why is AgentCore involved?” | [Complete Track C: customer-service agent](#complete-track-c-customer-service-agent) |
+| “Which files must I save before teardown?” | [Capture evidence and prepare submission](#capture-evidence-and-prepare-submission) |
+| “The collector cannot find an Athena query ID on Windows.” | [PowerShell and UTF-8 evidence logs](#powershell-and-utf-8-evidence-logs) |
+| “What can I safely delete, and in what order?” | [Teardown without losing needed evidence](#teardown-without-losing-needed-evidence) |
+
+## Lab map and prerequisites
+
+Lab 3 has four parts:
+
+1. **Task A (required):** train and evaluate a churn model using the Lab 2
+   Feature Store offline store through Athena.
+2. **Task B or Task C (choose one for the graded track):** build either the
+   offer-generation RAG system or the customer-service agent.
+3. **Task 3:** write `docs/lab3-model-design.md` with your design reasoning.
+4. **Task 4:** preserve evidence, update the README, verify Bedrock access,
+   and tear down billable resources.
+
+Track B uses churn risk and customer-profile data, so it depends on Task A and
+the Lab 2 data platform. Track C's agent does not itself need the Feature
+Store, MLflow, Model Registry, a SageMaker endpoint, or Studio, but Task A is
+still required for everyone.
+
+Before beginning Bedrock work, make sure the Pre-Lab 3 verification file
+exists at `docs/bedrock-access-verification.txt` and contains its two `PASS`
+lines. If your first Claude call reports a zero daily-token quota or persistent
+`ThrottlingException`, open an AWS Support case early; Task A can continue
+while Bedrock access is resolved. Do not put credentials in that file, your
+shell history, or the repo.
+
+## Place the starter kit correctly
+
+Add the Lab 3 starter kit to the repository you started in Lab 1. Do not make a
+separate Lab 3 repository and do not overwrite your existing Labs 1–2 work.
+
+```text
+churn_training_skeleton.py                  → models/churn/train.py (or retain its name)
+evaluation_harness.py                        → evaluation/evaluation_harness.py
+prompt_templates/offer_generation_prompts.md → prompt_templates/offer_generation_prompts.md
+northstar-policy-docs/                       → northstar-policy-docs/
+scripts/collect-lab3-evidence.sh             → scripts/collect-lab3-evidence.sh
+scripts/teardown-lab3.sh                     → scripts/teardown-lab3.sh
+```
+
+Create missing folders as needed and commit the starter files with your work.
+Task A uses the churn-training script; the AWS console and CLI support that
+work but do not replace the required Python implementation.
+
+If you choose Track C, also copy its `agent/` directory and the separate
+`infrastructure/environments/agent/` Terraform root. Do not modify the Labs
+1–2 Terraform root to add AgentCore resources: it uses an older AWS-provider
+major version that does not contain them.
+
+## Check the Labs 1–2 platform first
+
+The MLflow App needs an S3 artifact location and a SageMaker execution role.
+For this course, both come from the Labs 1–2 Terraform stack. Use Terraform
+outputs rather than guessing resource names:
 
 ```bash
 cd infrastructure/environments/dev
@@ -13,7 +83,7 @@ export ROLE_ARN=$(terraform output -raw ml_engineer_role_arn)
 cd -
 ```
 
-Create the app with an artifact path the course role can write to:
+Create the free MLflow App with an artifact path the course role can write:
 
 ```bash
 aws sagemaker create-mlflow-app \
@@ -22,75 +92,23 @@ aws sagemaker create-mlflow-app \
   --role-arn "$ROLE_ARN"
 ```
 
-The `MLEngineer` role is intentionally limited to `artifacts/` and `features/`; a bucket-root or `mlflow/` path can create an app but later fail when MLflow writes an artifact. The free MLflow App does not require a SageMaker Studio domain, but the S3 bucket and role do need to exist.
+The `MLEngineer` role is intentionally scoped to `artifacts/` and `features/`.
+A bucket-root or `mlflow/` artifact path may create an app but fail later when
+MLflow writes an artifact. An MLflow App does not require a Studio domain, but
+the bucket and role must exist.
 
-## Task 1 is code first; the console supports it
+### I already tore down Lab 2. Can I still do Lab 3?
 
-You are expected to complete Python code in the supplied churn-training skeleton (usually copied to `models/churn/train.py`). The required work includes querying the offline Feature Store through Athena, splitting the loyalty-tier labels with the model data, evaluating tiers, logging each run to MLflow, and packaging/registering the model.
+Yes, but reapply Lab 2 and repopulate its data first. `teardown-lab2.sh` empties
+every object version in the data bucket and destroys the Feature Group;
+Terraform can recreate infrastructure, but not the deleted data.
 
-Run the completed script locally for your three or more experiments. A SageMaker Training Job is optional, so do not wait for training quota approval to start. Use the AWS CLI or console to create/check the MLflow App and inspect the Model Registry—not as a replacement for the training script.
+The normal recovery is to re-run the Lab 2 pipeline. If you retained the
+processed Parquet snapshot, upload it after reapplying Terraform and rerun the
+**feature-engineering** Glue job. Uploading processed data alone does not
+restore Feature Store records or the Athena-queryable offline store.
 
-## Where the Lab 3 starter files go
-
-Download the Lab 3 starter kit from Canvas (or the public `cs401r-lab3-template` repository) and add it to the repository you started in Lab 1—do not create a separate Lab 3 repository or overwrite your existing work.
-
-```text
-churn_training_skeleton.py                  → models/churn/train.py (or keep its original name)
-evaluation_harness.py                        → evaluation/evaluation_harness.py
-prompt_templates/offer_generation_prompts.md → prompt_templates/offer_generation_prompts.md
-northstar-policy-docs/                       → northstar-policy-docs/
-scripts/teardown-lab3.sh                     → scripts/teardown-lab3.sh
-```
-
-Create any missing folders, then add and commit the files. The first mapping is the one Task 1 uses.
-
-## Use the compatibility pins before beginning Task 1 or Track B
-
-Create a virtual environment and install the tested dependencies rather than accepting the newest package versions:
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install "sagemaker>=2.200.0,<3.0.0" xgboost scikit-learn pandas numpy boto3 \
-            mlflow sagemaker-mlflow matplotlib
-# Track B only:
-pip install faiss-cpu ragas datasets "langchain-community<0.4" langchain-aws
-python -c "from sagemaker.feature_store.feature_group import FeatureGroup; import mlflow, sagemaker_mlflow; print('imports OK')"
-```
-
-Why the constraints matter: SageMaker SDK 3.x removed the Feature Store module Task 1 imports, `sagemaker-mlflow` authenticates MLflow to the SageMaker App, and newer `langchain-community` releases break RAGAS imports. Put the resulting constraints in a committed `requirements.txt` so a fresh environment can reproduce your work.
-
-## macOS: install OpenMP once when XGBoost cannot load
-
-If `import xgboost` fails with `Library not loaded: @rpath/libomp.dylib`, install the missing OpenMP runtime with Homebrew:
-
-```bash
-brew install libomp
-```
-
-Install `libomp` at the system level, not in your Python virtual environment. It is a native shared library that XGBoost loads; the virtual environment only isolates Python packages. After installation, activate your virtual environment and verify the Python package can now load it:
-
-```bash
-source .venv/bin/activate
-python -c "import xgboost; print(xgboost.__version__)"
-```
-
-## Do not tear down Lab 2 between Lab 3 work sessions
-
-`scripts/teardown-lab2.sh` intentionally empties every version of the data bucket and then destroys the bucket and Feature Group. A later `terraform apply` recreates the bucket, Glue resources, and Feature Group, but all are empty—Terraform recreates infrastructure, not data.
-
-If you tore down Lab 2, re-apply it and repopulate the Feature Store before Task 1. The standard recovery is to re-run the Lab 2 pipeline. If you saved the `processed/customers/` Parquet files locally, you may upload that snapshot after the bucket is recreated and then run the **feature-engineering** Glue job; it writes Feature Store records and restores the offline store that Task 1 queries. Uploading processed files alone is not enough.
-
-For a multi-session Lab 3 workflow, keep the Lab 2 stack up and stop only resources that bill while idle (for example, Studio kernels and test endpoints). Run the full Lab 2 teardown only when you are ready to rebuild its data or are finished with the infrastructure.
-
-### What happens to MLflow if you tear down Lab 2?
-
-The MLflow App and its run history remain: parameters, metrics, timestamps, and run IDs are stored by SageMaker rather than Terraform. But the App's logged artifacts are in the Lab 2 S3 bucket. Because the Lab 2 teardown empties and deletes that bucket, it permanently removes MLflow plots, model files, and other artifacts. Model Registry records can remain but will point at deleted model files.
-
-`scripts/teardown-lab3.sh` is safe after Task 1 because it leaves the MLflow App and Registry alone while it removes billable endpoints and active jobs. If you later run the Lab 2 teardown, rebuild the data/Feature Store and rerun any model you need for later labs; once Terraform recreates the bucket and role, keep using the same MLflow App ARN rather than creating a second App.
-
-### Check whether the Feature Store must be repopulated
-
-You do not need the Studio Feature Store page for this check. From the repository root, first confirm that the Feature Group and its offline store exist:
+Check that the Feature Group and its offline store exist:
 
 ```bash
 cd infrastructure/environments/dev
@@ -101,80 +119,96 @@ aws sagemaker describe-feature-group --feature-group-name "$FG" \
 cd -
 ```
 
-You want the Feature Group to be `Created`, the offline store to be `Active`, and a database/table name. If it is missing, failed, or has no table, re-apply Lab 2 and rerun the feature-engineering pipeline.
-
-To confirm that it has actual records—not merely an empty Feature Group—open the Athena console in `us-east-1`, choose the database/table shown above, and run:
+You want `Created`, `Active`, and a database/table name. Then use Athena to
+check for actual records:
 
 ```sql
 SELECT COUNT(*) AS feature_rows
 FROM "sagemaker_featurestore"."YOUR_OFFLINE_STORE_TABLE";
 ```
 
-If the count is zero, rerun the Lab 2 feature-engineering Glue job. If the table itself is missing after a teardown, re-apply the stack first, then repopulate it.
+If the count is zero, rerun the Lab 2 feature-engineering job. If the table is
+missing, reapply the stack first and then repopulate it.
 
-## Keep aggregate evaluation separate from slice evaluation
+### What survives a Lab 2 teardown?
 
-Do not replace `evaluate_model(model, X_val, y_val, baseline_proba)`: the starter already uses it for the overall metrics and the recency-baseline confidence interval.
+The MLflow App and its run metadata can remain, but its artifacts live in the
+Lab 2 data bucket. A Lab 2 teardown permanently removes those S3 artifacts and
+can leave registry metadata pointing at deleted model files. Keep the Lab 2
+stack until you have captured Lab 3 evidence and no longer need its data.
 
-The Solution Notes code in Step 2.4 replaces the separate `evaluate_slices` stub. Its updated signature accepts `tiers` (the `tier_val` array that travels through `train_test_split`) and optional reliability/bootstrapping arguments. After the existing aggregate-evaluation line, add:
+## Set up a compatible local environment
+
+Create a project virtual environment and use the tested dependency bounds:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install "sagemaker>=2.200.0,<3.0.0" xgboost scikit-learn pandas numpy boto3 \
+            mlflow sagemaker-mlflow matplotlib
+# Track B only:
+pip install faiss-cpu ragas datasets "langchain-community<0.4" langchain-aws
+python -c "from sagemaker.feature_store.feature_group import FeatureGroup; import mlflow, sagemaker_mlflow; print('imports OK')"
+```
+
+SageMaker SDK 3.x removed the Feature Store module Task A imports.
+`sagemaker-mlflow` provides the SageMaker MLflow authentication integration,
+and newer `langchain-community` releases can break the RAGAS imports. Commit
+your resulting dependency constraints so a fresh environment can reproduce
+your work.
+
+On macOS, if `import xgboost` reports a missing `libomp.dylib`, install OpenMP
+once at the system level:
+
+```bash
+brew install libomp
+source .venv/bin/activate
+python -c "import xgboost; print(xgboost.__version__)"
+```
+
+Track C additionally requires boto3 1.43.57+, AWS CLI **v2** 2.36+, and
+Terraform 1.7.5+. `aws-cli/1...` is not sufficient.
+
+For Track C cost control, keep the starter Harness setting
+`idle_session_timeout_seconds = 60`. A reference Harness session costs roughly
+$0.003 at that setting but roughly $0.018 at the AWS default 900-second idle
+timeout. A deployed stack with no active sessions does not itself bill.
+
+## Complete Task A correctly
+
+The required training path is Python code that queries the Feature Store
+offline table through Athena. A local CSV or direct Parquet read can help while
+developing, but it is not the graded run. Your final run should:
+
+- pass hyperparameters and paths as arguments rather than hardcoding them;
+- log at least three varied MLflow runs with parameters and metrics;
+- register the selected model as `PendingManualApproval`, never `Approved`;
+- report held-out precision and recall at the global top 10%, the recency-only
+  baseline, lift, and a 95% confidence interval; and
+- report tier slices with each tier's `n`, positives, AUC, recall, and any
+  reliability limitation.
+
+### How do aggregate metrics and tier slices fit together?
+
+Keep the aggregate `evaluate_model(...)` call. It produces the overall metrics
+and the recency-baseline confidence interval. Add slice evaluation separately
+after that call:
 
 ```python
 slice_results = evaluate_slices(model, X_val, y_val, tier_val)
 ```
 
-Then pass `slice_results` to the updated tracking and registration functions described in the later solution steps.
+Carry `tier_val` through the same `train_test_split` as `X` and `y`; this
+preserves row alignment. Then pass `slice_results` to tracking and model
+registration if your starter functions accept it.
 
-## macOS zsh: make reusable command arguments an array
+## Fix Task A data-access problems
 
-The Solution Notes use a bash-style reusable string:
+### `train_test_split` fails after upgrading pandas
 
-```bash
-COMMON="--feature-group-name $FG --artifacts-bucket $BUCKET --mlflow-arn $MLFLOW_APP_ARN"
-python models/churn/train.py $COMMON ...
-```
-
-In zsh (the default macOS shell), `$COMMON` is passed as one argument instead of being split into flags. `argparse` then reports that `--artifacts-bucket` is missing even though `echo $COMMON` looks correct.
-
-Use a zsh array instead:
-
-```zsh
-COMMON=(--feature-group-name "$FG" --artifacts-bucket "$BUCKET" --mlflow-arn "$MLFLOW_APP_ARN")
-python models/churn/train.py "${COMMON[@]}" --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
-```
-
-Or put each flag directly in the `python` command. The SDK v2 deprecation warning in the output is expected for this lab and is unrelated to the argument error.
-
-## Athena returns zero rows: check the Feature Store ingest-date window first
-
-`event_time` in this lab is when the Lab 2 feature-engineering job ran, not the historical cutoff date used to calculate features. If your script defaults to a window ending on `2026-06-01`, it will exclude a Fall 2026 Lab 2 run even when the Feature Store has data.
-
-Run with the semester-wide window:
-
-```zsh
-python models/churn/train.py "${COMMON[@]}" \
-  --training-start-date 2026-01-01 --training-end-date 2027-01-01 \
-  --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
-```
-
-The current starter kit uses those defaults. If your copied script instead defaults to `2025-02-01` through `2026-06-01`, update those defaults or keep supplying the two flags. Only rerun the Lab 2 feature pipeline after confirming the Feature Group/offline store is missing or the wider date window still returns zero rows.
-
-## Which infrastructure each Lab 3 track needs
-
-Track A is required for everyone and needs the Lab 2 Feature Group/offline store, the Lab 2 data bucket, and the MLflow App/Model Registry resources it creates or uses.
-
-Track B also depends on Task 1: it generates offers for high-risk customers and uses their churn score and Feature Store profile. Keep Lab 2 data available for Track B.
-
-Track C's customer-service agent does not itself need the Feature Store, MLflow, Model Registry, a SageMaker endpoint, or a Studio kernel. Its required order lookup is simulated and its policy tool reads the local starter-kit corpus. It does require Bedrock access. Remember that Track A remains required even if you choose Track C.
-
-## Pandas 3: fix the `train_test_split` slice-label error
-
-If `train.py` fails at `train_test_split` with:
-
-```text
-TypeError: only integer scalar arrays can be converted to a scalar index
-```
-
-the `loyalty_tier` column is probably a pandas 3 Arrow-backed string array. Do not pass `.values` directly to scikit-learn. Convert the tiers to a regular NumPy array first:
+If you see `TypeError: only integer scalar arrays can be converted to a scalar
+index`, the loyalty-tier series may be a pandas 3 Arrow-backed string array.
+Convert it before splitting:
 
 ```python
 tiers = df[SLICE_COLUMN].to_numpy(dtype=str)
@@ -183,146 +217,259 @@ X_train, X_val, y_train, y_val, tier_train, tier_val = train_test_split(
 )
 ```
 
-Keep the tiers in the same `train_test_split` call as `X` and `y`; this is what preserves their row-by-row alignment for slice evaluation.
+### Athena returns zero rows
 
-## Save the updated Lab 3 evidence bundle before teardown
+`event_time` is the feature-engineering run time, not the historical cutoff
+date used to create features. A narrow or stale date window can exclude valid
+current-semester records. Use the semester-wide dates when needed:
 
-The updated guide specifies exact paths under `docs/lab3-evidence/`. Run the
-graded training command with `--output-data-dir docs/lab3-evidence`, omit
-`--local-data-path`, and save all console output to
-`docs/lab3-evidence/train-final.log`. Confirm the log includes an
-`Athena QueryExecutionId`. Then run
-`bash scripts/collect-lab3-evidence.sh --track B` or `--track C` before
-teardown; the collector exports the Athena query, MLflow App/runs, and registry
-record, and checks the evidence files and matching metrics.
+```bash
+python models/churn/train.py "${COMMON[@]}" \
+  --training-start-date 2026-01-01 --training-end-date 2027-01-01 \
+  --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
+```
 
-Keep the evaluation report, model-design document, and cleanly executed demo
-notebook at the paths in the guide. For Fall 2026, the professor's transition
-note says missing new evidence files do not cost points; a TA may request a
-short screen-share for evidence that is still only in AWS. The export workflow
-is still the easiest way to make the result reviewable after teardown.
+Confirm the Feature Store has data before rerunning the Lab 2 pipeline.
 
-## Track B: follow the revised RAGAS evidence requirements
+### macOS zsh says an argument is missing even though it is in `COMMON`
 
-From the repository root, activate the project environment and run:
+In zsh, a reusable command string is passed as one argument. Use an array:
 
 ```zsh
+COMMON=(--feature-group-name "$FG" --artifacts-bucket "$BUCKET" --mlflow-arn "$MLFLOW_APP_ARN")
+python models/churn/train.py "${COMMON[@]}" --max-depth 3 --eta 0.1 --num-round 300 --run-name d3-eta0.1
+```
+
+Or put every flag directly in the command. The SageMaker SDK v2 deprecation
+warning is expected and unrelated to an `argparse` error.
+
+## Complete Track B: offer-generation RAG
+
+Run the supplied four cases at least twice and save the raw output:
+
+```bash
 source .venv/bin/activate
 python rag/evaluate.py
 ```
 
-The professor has withdrawn the RAGAS thresholds as grading criteria. Run all four supplied cases at least twice. Report each case's scores, the mean and range, and the judge model. For each metric, explain a limitation using a specific case or claim. Measure one pipeline change before and after; it earns credit even if it does not improve the scores.
+The Fall 2026 RAGAS target numbers are **not** graded. Credit comes from a
+complete, honest evaluation:
 
-The local runner now compares the same offer pipeline before and after adding the customer profile as an extra judge context. It runs two repeats per condition and writes detailed per-case scores to `docs/lab3-evidence/rag_eval.csv`, a mean/range summary to `docs/lab3-ragas-summary.csv`, and answers plus contexts to `docs/lab3-rag-comparison-examples.json`. It names the judge model in both outputs. Before/after is the one measured change; do not combine it with a prompt rewrite if you want to attribute score differences to profile context.
+- report per-case scores, means, ranges, and the judge model;
+- explain a specific limitation of faithfulness, answer relevancy, and context
+  recall; and
+- measure one pipeline change before and after, even if it did not help every
+  metric.
 
-This run calls Bedrock for embeddings, offer generation, and RAGAS scoring, so it may incur AWS charges. If you get `Could not connect to the endpoint URL` or a DNS error, check network access and the AWS profile used by Python. With IAM Identity Center, run `aws sso login --profile YOUR_PROFILE` and set `AWS_PROFILE=YOUR_PROFILE` in the same terminal. Do not paste credentials into the script or commit them.
+The provided local runner compares the same pipeline before and after adding
+the customer profile as an explicit judge context. It writes detailed scores to
+`docs/lab3-evidence/rag_eval.csv`, summaries to
+`docs/lab3-ragas-summary.csv`, and generated answers plus contexts to
+`docs/lab3-rag-comparison-examples.json`.
 
-A `NaN` score means the judge call failed, often from throttling. It is missing evidence, not zero. Rerun until you have valid scores for all four cases in both repeats of each condition. The range is the maximum minus minimum across repeated scores; also show the values per case so the grader can see where the metric varies.
+Before you use Template 3's tier block, compare every threshold and shipping
+benefit with the policy corpus. It contains three deliberate factual errors.
+The point is to catch policy drift in marketing-style copy, not to inject the
+block unchanged and hope retrieval corrects it.
 
-Use the rubric's revised interpretation of the metrics:
+This run calls Bedrock for embeddings, generation, and judging, so it can cost
+money. Verify the AWS profile and network before running it. With IAM Identity
+Center, authenticate in the same terminal, for example:
 
-- **Faithfulness:** the judge sees retrieved policy context and, in the after condition, the customer profile. Unsupported wording or a claim present only in the profile can shift the score. Avoid filler such as “We've missed you!” and invented terms such as an unprovided redemption deadline.
-- **Answer relevancy:** this metric was designed for question answering, so a generated offer may be relevant but still score poorly. Cite a case where the offer answers the request and explain what the judge appears to penalize.
-- **Context recall:** the supplied ground truths include claims the policy corpus does not support, so retrieval of the complete corpus still cannot satisfy every expected claim. Identify a specific unsupported ground-truth claim rather than trying to force retrieval to invent evidence.
-
-Adding profile data to judge contexts is a rubric-supported pipeline change because the judge otherwise cannot verify profile facts in an offer. Keep retrieved policy chunks and the profile labeled separately in the saved evidence so a grader can see the provenance of each claim.
-
-If you get `Could not connect to the endpoint URL` or a DNS error, check that your environment has network access to Bedrock and that the AWS profile used by Python is authenticated. If you use AWS IAM Identity Center, run `aws sso login --profile YOUR_PROFILE` in the same terminal and set `AWS_PROFILE=YOUR_PROFILE` before starting the script. Do not paste credentials into the script or commit them.
-
-The handout rubric says “demo notebook,” but the Solution Notes provide a Python entry point. Keep the command you ran and the required Track B examples with your submission; ask the instructor which artifact format they expect if the rubric has not been updated.
-
-## Keep retention-offer expiry separate from return eligibility
-
-POL-LOY-011 §5.1 gives a retention offer a 45-day redemption period. That does not extend the return window: Gold has 30 calendar days from delivery (online) or purchase (in store), under POL-RET-004. State the offer deadline separately, avoid wording that implies a 45-day return period, and give the customer an explicit next step such as “Shop Outdoor or Footwear and redeem this offer by [date].” Also, a standing tier benefit such as Gold free return shipping may be accurate but is not necessarily a new retention incentive; do not label it “exclusive” unless the campaign actually makes it exclusive.
-
-## If RAGAS reports `LLMDidNotFinishException`, check score completeness
-
-The RAGAS judge can run out of output tokens while scoring long answers and policy contexts. A `NaN` score is missing evidence, not a zero. The local `rag/evaluate.py` configures a larger judge output limit and reports valid counts; rerun if any case is missing a metric. The withdrawn thresholds are not pass/fail criteria. Inspect individual offers and contexts to support your analysis; an offer's 45-day redemption deadline does not extend a Gold member's 30-day return window.
-
-When offers invent “bonus points,” a new minimum purchase, an available birthday reward, or an unused gear-credit balance, that is a prompt-grounding failure. The customer profile does not contain those facts. Use a stated tier benefit as an existing benefit; don’t turn it into a new promotion or call it exclusive. Lifetime value is also not the trailing-12-month spend used to determine a policy tier, so do not claim a customer is a specific amount from the next tier.
-
-## A policy duration is not an individualized expiry date
-
-POL-LOY-011 §5.1 says a retention offer is valid for 45 days **from issue**. You may use that exact policy wording only when the retention-offer chunk was retrieved. Do not turn it into a calendar deadline—or “within the next 45 days”—unless the profile supplies the issue date. Likewise, “400 locations” is supported by the shipping/FAQ corpus, but it is not useful offer personalization; include it only when a customer actually asks about pickup or locations and you retrieved its source.
-
-## Track C: verify the AgentCore prerequisites before deployment
-
-The current Track C handout requires boto3 1.43.57 or later, AWS CLI **v2**
-2.36 or later, and Terraform 1.7.5 or later. `aws --version` beginning with
-`aws-cli/1.` is AWS CLI v1 and does not satisfy the CLI prerequisite; install
-or select an AWS CLI v2 binary before following the handout's AgentCore
-workflow. `terraform version` and this no-network Python check make the other
-requirements visible:
-
-```zsh
-terraform version
-python -c "import boto3; print(boto3.__version__)"
+```bash
+aws sso login --profile YOUR_PROFILE
+export AWS_PROFILE=YOUR_PROFILE
 ```
 
-This is a verified compatibility requirement from the current handout. Whether
-an older CLI happens to work with a particular Terraform run is not a supported
-assumption.
+If you write your own RAGAS call, pass the Bedrock `llm=` and `embeddings=`
+objects explicitly. Otherwise RAGAS defaults to OpenAI, and the course does
+not provide an OpenAI key. For Claude 4.5+, use the cross-region `us.`
+inference-profile ID, such as
+`us.anthropic.claude-haiku-4-5-20251001-v1:0`; the bare model ID is rejected.
+Set `temperature` **or** `topP`, never both.
 
-## Track C: produce and review the AgentCore evidence
+### How should I interpret weak RAGAS scores?
 
-After the AgentCore Terraform stack is applied, run the direct Gateway/Cedar
-probe first, then the Harness evaluation:
+- **Faithfulness:** the judge cannot support profile facts unless the profile
+  is included as a labeled context. Filler, invented deadlines, and invented
+  account state also hurt this metric.
+- **Answer relevancy:** the input is an instruction to write an offer, not a
+  normal customer question. A relevant marketing offer can therefore score
+  poorly on a question-answering metric.
+- **Context recall:** supplied ground truths include claims absent from the
+  policy corpus. Retrieval cannot produce supporting evidence that does not
+  exist in the corpus.
 
-```zsh
+Also submit five input/output pairs and at least two documented failure cases
+with concrete fixes in `docs/lab3-evidence/track-b-examples.md`. The fifth
+example is your own case; the harness only supplies four. Preserve each
+retrieved context identifier with the example.
+
+### RAGAS reports `NaN` or `LLMDidNotFinishException`
+
+A `NaN` is missing evidence, not a score of zero. The RAGAS judge can run out
+of output tokens while scoring long contexts. The local `rag/evaluate.py`
+already configures its judge with an explicit 4096-token output budget. Check
+that your local version retains that setting, then rerun only incomplete cases
+and do not average a metric until every required value is valid.
+
+### What claims are unsafe in a generated offer?
+
+Do not invent coupons, bonus points, purchase minimums, birthday rewards,
+available balances, unused credits, or calendar deadlines. A 45-day retention
+offer is valid **from issue**; it does not change the return window and is not
+an individualized date unless an issue date is known. Do not call a standing
+tier benefit “exclusive” unless the campaign establishes that it is exclusive.
+
+The feature-store tier is based on lifetime value, while policy eligibility is
+based on trailing-12-month spend. Do not infer that a customer is a stated
+amount away from the next tier. Use the system of record in production; until
+then, phrase near-threshold tier information conditionally.
+
+## Complete Track C: customer-service agent
+
+The current handout's Track C path uses **Amazon Bedrock AgentCore**: a
+Harness, IAM-authenticated Gateway, Lambda tools, and Cedar policy enforcement.
+Use the current handout and supplied AgentCore starter files. If an older
+document tells you to use managed Bedrock Agents or only a local ReAct loop,
+ask course staff which dated path applies before deploying anything.
+
+After applying the AgentCore Terraform root, run the direct policy probe first,
+then the Harness evaluator:
+
+```bash
 source .venv/bin/activate
 python agent/policy_tests.py
 python -m agent.evaluate
 ```
 
-The policy probe must report all seven expected outcomes and writes
-`docs/lab3-evidence/policy-tests.json`. The evaluator runs the five required
-scenarios twice and writes `agent_eval.csv`; its Harness client appends each
-tool call to `agent-traces.jsonl` and each runtime session's estimated cost to
-`agent-cost.csv`. These commands invoke deployed AWS services. They do not
-write or replace Track B's `rag_eval.csv` or `track-b-examples.md`.
+The seven policy tests must show the expected allow/deny decisions. The agent
+evaluator runs the five required scenarios twice. It writes:
 
-The supplied collector currently looks for a legacy `latency` key even though
-the documented trace field is `latency_ms`. The working client records both
-with the same millisecond value for compatibility. If you use an unmodified
-starter client and the collector says that only `latency` is missing, retain
-the correct `latency_ms` field and report the collector mismatch rather than
-rerunning paid Harness evaluations solely for that message.
+- `docs/lab3-evidence/policy-tests.json`
+- `docs/lab3-evidence/agent_eval.csv`
+- `docs/lab3-evidence/agent-traces.jsonl`
+- `docs/lab3-evidence/agent-cost.csv`
 
-Review both repetitions, especially TC-002 through TC-005. TC-002's 30-day
-rule is in POL-RET-004 §1, not the loyalty document; the Silver return-shipping
-fee is in §6.2. TC-004 should ask for clarification without promising a refund.
-For TC-005, verify the final reply cites POL-RET-004 §4, plainly declines the
-final-sale return, does not imply an exception is possible, and calls
-`escalate_to_human`. A tool-check PASS alone does not prove those response
-details.
+These calls use deployed AWS services and can incur charges. They do not
+replace Track B evidence files.
 
-The required TC-003 and TC-005 prompts do not provide a customer ID, but they
-still require a recorded escalation. Make the escalation tool accept an absent
-ID and pass `customer_id: "UNKNOWN"`; do not omit the call because the customer
-did not provide an account number. Similarly, a return request that supplies a
-tier and elapsed time is already a policy question: call `query_policy` before
-asking for a missing order ID.
+The expected AgentCore path was announced on October 14. If you began Track C
+from an older local-ReAct starter before that announcement, stop and contact
+course staff for grading direction rather than trying to combine the two
+architectures.
 
-Finally, write `track-c-failures.md` using actual trace `session_id` values.
-One required failure case is the two allowed $40 credits: a per-call Cedar
-policy sees each call separately, not their $80 total. Explain that a
-stateful/temporal control with durable customer and session identity would be
-needed to enforce a cumulative cap, and state whether the deployed Harness can
-supply that state. Run the Track C evidence collector before teardown so it
-exports `agentcore-config.json` while the stack still exists.
+If an AgentCore apply or first call returns `AccessDenied` immediately after
+you added the named permission, wait about a minute for IAM propagation before
+changing Terraform or the prompt. The current kit already uses the required
+`us.` Claude 4.5 inference profile; do not replace it with the bare model ID
+or legacy Claude 3 Haiku.
 
-## Track C: destroy the AgentCore Terraform root explicitly
+### What should I inspect beyond an automated PASS?
 
-The current `scripts/teardown-lab3.sh` cleans up SageMaker endpoints and jobs,
-but it does **not** run a Terraform destroy for the separate AgentCore root.
-After `collect-lab3-evidence.sh --track C` has successfully written
-`agentcore-config.json`, run:
+Review both repetitions, especially these scenarios:
 
-```zsh
-terraform -chdir=infrastructure/environments/agent destroy
+- **TC-002:** retrieve the actual 30-day return rule and the applicable
+  shipping fee before asserting eligibility.
+- **TC-003:** an out-of-window request requires a policy lookup and a recorded
+  escalation; text saying “I will escalate” is not a tool call.
+- **TC-004:** ask for needed clarification without promising a refund.
+- **TC-005:** cite `POL-RET-004 §4`, plainly decline the final-sale return,
+  avoid implying an exception is possible, and call `escalate_to_human`.
+
+The TC-003 and TC-005 prompts do not provide a customer ID but still require a
+recorded escalation. Make the escalation tool accept an absent ID and pass
+`customer_id: "UNKNOWN"`; do not omit the tool call.
+
+One required failure analysis is the split-credit hole: two individually
+allowed $40 credits can exceed a $50 cumulative limit. A per-call Cedar rule
+does not remember earlier calls. Explain in `track-c-failures.md` that a
+durable ledger or session-aware/temporal control with customer identity is
+needed for a cumulative limit.
+
+## Capture evidence and prepare submission
+
+Keep evidence in the exact required locations. At minimum, preserve:
+
+- Task A training log, metrics JSON, slice CSV, plots, and evaluation report;
+- the demo notebook saved after one clean Restart and Run All;
+- Track B **or** Track C required evidence files;
+- `docs/lab3-model-design.md` and `docs/bedrock-access-verification.txt`; and
+- the collector report and final teardown output.
+
+For Fall 2026, a missing newly introduced evidence export does not by itself
+lose points: a TA may confirm the item in a short screen-share. Still run the
+collector and commit its output whenever possible; it is the fastest way to
+make a post-teardown submission easy to grade.
+
+For a final Athena-backed Task A run, omit `--local-data-path`, use
+`--output-data-dir docs/lab3-evidence`, and save console output to
+`docs/lab3-evidence/train-final.log`. The log must contain the exact line:
+
+```text
+Athena QueryExecutionId: <36-character UUID>
+```
+
+Before teardown, run the collector for your graded track:
+
+```bash
+bash scripts/collect-lab3-evidence.sh --track B
+# or
+bash scripts/collect-lab3-evidence.sh --track C
+```
+
+It exports AWS-side proof such as the Athena query, MLflow runs, registry
+versions, and—on Track C—the AgentCore configuration. Fix a `FAIL` before
+teardown. A `WARN` needs review, but is not automatically blocking. Keep the
+collector output in the repository so a TA can grade after your AWS resources
+are gone.
+
+After teardown, commit the intended work and tag that commit:
+
+```bash
+git tag lab3-submit
+git push origin lab3-submit
+```
+
+The TA grades the `lab3-submit` tag, not later commits on your default branch.
+
+## PowerShell and UTF-8 evidence logs
+
+The handout's Bash command using `2>&1 | tee ...` is not reliably portable to
+Windows PowerShell. In Windows PowerShell 5.1, `tee` maps to `Tee-Object` and
+can write a UTF-16 log. The log can look correct in an editor while the
+collector cannot match the ASCII text `Athena QueryExecutionId: ...` because
+UTF-16 inserts null bytes between characters.
+
+Use a UTF-8 terminal/output setting (PowerShell 7 is a practical option) or
+save/convert `docs/lab3-evidence/train-final.log` as UTF-8 before running the
+collector. Do not hardcode a query ID: the collector also looks that UUID up
+in Athena and verifies the query. If the line is visibly present but the
+collector says it is missing, report your PowerShell version and capture
+command to course staff; this is an encoding issue, not evidence that the
+Athena query failed.
+
+## Teardown without losing needed evidence
+
+Do not tear down resources until the collector has completed successfully and
+all local evidence files are saved. `teardown-lab3.sh` removes billable
+SageMaker endpoints/configurations and stops active jobs while retaining the
+free MLflow App and Model Registry records.
+
+For Track C, capture AgentCore evidence first. The **current** starter-kit
+version of `scripts/teardown-lab3.sh` then destroys the separate AgentCore
+Terraform root, deletes the Harness runtime log group, and verifies that no
+Harnesses, Gateways, policy engines, or runtimes remain:
+
+```bash
 bash scripts/teardown-lab3.sh
 ```
 
-Do not reverse this order: AgentCore configuration must be captured while the
-Harness, Gateway, and Cedar policy engine still exist. Allow the Terraform
-destroy to finish; it is the command that removes the Track C stack.
+If your local script does not include a Track C destruction step, it is an
+older copy. Refresh it from the current starter kit rather than assuming the
+generic SageMaker cleanup also removes AgentCore resources. The AgentCore
+destroy can take about five minutes; let it finish.
+
+Do not run the Lab 2 teardown until you are ready to delete the Feature Store,
+data bucket, and S3-backed MLflow artifacts. When all evidence is committed,
+create the required submission tag from the commit you intend to submit.

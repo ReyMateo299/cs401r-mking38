@@ -1,0 +1,105 @@
+{
+  "review_type": "llm",
+  "student_id": "Boston_Sharp",
+  "reviewer": "Codex LLM-assisted rubric review; TA verification pending",
+  "canvas_summary": "The submitted Terraform and Python cover the Lab 2 infrastructure, ETL, temporal features, and Feature Store requirements. Your committed verification log reports 47 passes and 0 failures, and I found the requested data contract, labeled lineage diagram, and teardown evidence.",
+  "teardown_evidence": "auto",
+  "confirmed_secret": false,
+  "scores": {
+    "T1.1": {
+      "score": 10,
+      "reason": "The dev configuration defines a private subnet with a NAT route and places a VpcOnly SageMaker Domain there; saved verification confirms these resources were present at verification time.",
+      "evidence": ["infrastructure/modules/vpc/main.tf:77", "infrastructure/modules/vpc/main.tf:106", "infrastructure/modules/sagemaker/main.tf:13", "docs/lab2-verify-output.txt:4"]
+    },
+    "T1.2": {
+      "score": 8,
+      "reason": "All three roles and attachments are defined. DataEngineer can write the data prefixes and only read artifacts/glue; ModelMonitor has metrics and read permissions without S3 writes or endpoint invocation. The saved verifier corroborates the key boundaries.",
+      "evidence": ["infrastructure/modules/iam/main.tf:135", "infrastructure/modules/iam/main.tf:155", "infrastructure/modules/iam/main.tf:269", "docs/lab2-verify-output.txt:9"]
+    },
+    "T1.3": {
+      "score": 4,
+      "reason": "The storage module defines the five requested lifecycle rules with the required prefixes and current or noncurrent retention periods; the saved verifier reports five rules.",
+      "evidence": ["infrastructure/modules/storage/main.tf", "docs/lab2-verify-output.txt:15"]
+    },
+    "T1.4": {
+      "score": 3,
+      "reason": "The committed LocalStack output shows a clean apply, while the local environment disables NAT and the Terraform still defines the private subnet and three roles.",
+      "evidence": ["docs/lab2-localstack-output.txt:985", "infrastructure/environments/local", "infrastructure/modules/vpc/main.tf:77"]
+    },
+    "T2.1": {
+      "score": 6,
+      "reason": "Terraform defines the catalog database and crawler for raw/customers under the DataEngineer role, and the saved verifier reports that the crawler registered customers.",
+      "evidence": ["infrastructure/modules/glue/main.tf:43", "infrastructure/modules/glue/main.tf:64", "docs/lab2-verify-output.txt:18"]
+    },
+    "T2.2": {
+      "score": 12,
+      "reason": "cast_types uses the schema to parse both date formats and remove null customer IDs; impute_nulls uses numeric medians and unknown strings; deduplicate keeps one transaction by a deterministic ordering. The saved checks report no null dates or duplicate transaction IDs and preserve transaction grain.",
+      "evidence": ["glue-scripts/transform.py:47", "glue-scripts/transform.py:67", "glue-scripts/transform.py:109", "glue-scripts/transform.py:133", "docs/lab2-verify-output.txt:25"]
+    },
+    "T2.3": {
+      "score": 4,
+      "reason": "The Glue module defines the database, crawler, private network connection, jobs, and Terraform-managed script uploads; the saved extension apply completed successfully.",
+      "evidence": ["infrastructure/modules/glue/main.tf:119", "infrastructure/modules/glue/main.tf:139", "infrastructure/modules/glue/main.tf:185", "docs/lab2-extend-output.txt:147"]
+    },
+    "T2.4": {
+      "score": 3,
+      "reason": "The committed verification reports the transform job SUCCEEDED and processed Parquet output.",
+      "evidence": ["docs/lab2-verify-output.txt:20", "docs/lab2-verify-output.txt:22"]
+    },
+    "T3.1": {
+      "score": 10,
+      "reason": "All five feature functions are implemented and called: RFM aggregates produce one customer row, loyalty tiers use thresholds, churn risk is bounded, and churn_label is joined from holdout outcomes. The saved feature checks show complete columns, four tiers, and a nondegenerate score.",
+      "evidence": ["glue-scripts/feature_engineer.py:77", "glue-scripts/feature_engineer.py:143", "glue-scripts/feature_engineer.py:164", "glue-scripts/feature_engineer.py:200", "docs/lab2-verify-output.txt:29"]
+    },
+    "T3.2": {
+      "score": 4,
+      "reason": "The code uses a fixed observation and holdout cutoff, computes features from history, and derives the label from later outcomes; saved results show a plausible 22% churn rate and no trivial recency separation.",
+      "evidence": ["glue-scripts/feature_engineer.py:54", "glue-scripts/feature_engineer.py:61", "glue-scripts/feature_engineer.py:200", "docs/lab2-verify-output.txt:33"]
+    },
+    "T3.3": {
+      "score": 3,
+      "reason": "The Feature Group module uses 16 typed definitions, including Fractional event_time and Integral churn_label, with online and offline stores; the saved verifier confirms creation and GetRecord with 16 features.",
+      "evidence": ["infrastructure/modules/feature_store/main.tf:17", "infrastructure/modules/feature_store/variables.tf", "docs/lab2-verify-output.txt:39"]
+    },
+    "T3.4": {
+      "score": 3,
+      "reason": "The committed verification reports the feature-engineering job SUCCEEDED, one feature row per customer, and a Feature Store record returned by GetRecord.",
+      "evidence": ["docs/lab2-verify-output.txt:21", "docs/lab2-verify-output.txt:30", "docs/lab2-verify-output.txt:45"]
+    },
+    "T4.1": {
+      "score": 8,
+      "reason": "The written contract identifies producer, consumers, transaction grain, nine typed columns with nullability, measurable quality guarantees, a numeric availability and response SLA, and a breaking-change migration policy.",
+      "evidence": ["docs/lab2-data-contract.md:17", "docs/lab2-data-contract.md:38", "docs/lab2-data-contract.md:47", "docs/lab2-data-contract.md:64", "docs/lab2-data-contract.md:92", "docs/lab2-data-contract.md:105"]
+    },
+    "T4.2": {
+      "score": 7,
+      "reason": "Visual inspection of the lineage diagram found the source, raw S3, crawler/catalog, transform, processed Parquet, feature job, feature Parquet and Feature Store flow, with formats and write roles labeled on the connections. Editable diagram source is also submitted.",
+      "evidence": ["docs/lab2-data-lineage.png", "docs/lab2-data-lineage.drawio"]
+    },
+    "T5.1": {
+      "score": 4,
+      "reason": "Glue and Feature Store resources are organized in their own modules and wired from the environment, without conflicting copies of those resources.",
+      "evidence": ["infrastructure/modules/glue/main.tf", "infrastructure/modules/feature_store/main.tf", "infrastructure/environments/dev"]
+    },
+    "T5.2": {
+      "score": 3,
+      "reason": "New Glue and Feature Store resource names derive from project, environment, and dataset variables as required by the handout.",
+      "evidence": ["infrastructure/modules/glue/main.tf", "infrastructure/modules/feature_store/main.tf:11"]
+    },
+    "T5.3": {
+      "score": 3,
+      "reason": "Local terraform fmt checking passed; the committed successful apply and verification output provide evidence that the Terraform validated and applied at submission time.",
+      "evidence": ["infrastructure", "docs/lab2-extend-output.txt:147", "docs/lab2-verify-output.txt:58"]
+    },
+    "T5.4": {
+      "score": 3,
+      "reason": "The committed extension output contains a successful apply with 53 resources added and no subsequent error in that run.",
+      "evidence": ["docs/lab2-extend-output.txt:147"]
+    },
+    "T5.5": {
+      "score": 2,
+      "reason": "The README explains the added Lab 2 infrastructure, data flow, execution sequence, verification, and teardown.",
+      "evidence": ["README.md"]
+    }
+  }
+}

@@ -1,0 +1,287 @@
+{
+  "review_type": "llm",
+  "student_id": "Celeste_Amelia_Espinoza",
+  "reviewer": "",
+  "canvas_summary": "",
+  "review_notes": [],
+  "verification_fail_reviewed": null,
+  "verification_fail_reason": "",
+  "teardown_evidence": "auto",
+  "confirmed_secret": null,
+  "scores": {
+    "T1.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 10.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/vpc/main.tf:76",
+          "infrastructure/modules/vpc/main.tf:94",
+          "infrastructure/modules/vpc/main.tf:50",
+          "infrastructure/modules/sagemaker/main.tf:14"
+        ]
+      }
+    },
+    "T1.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 8.0,
+        "needs_review": true,
+        "flags": [
+          "Review effective IAM scope and trust per role; string matches are only structural signals"
+        ],
+        "evidence": [
+          "infrastructure/modules/iam/main.tf:115"
+        ]
+      }
+    },
+    "T1.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/storage/main.tf:59"
+        ]
+      }
+    },
+    "T1.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 3.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "docs/lab2-localstack-output.txt"
+        ]
+      }
+    },
+    "T2.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4,
+        "needs_review": true,
+        "flags": [
+          "Committed verification does not show a crawler-registered table"
+        ],
+        "evidence": [
+          "infrastructure/modules/glue/main.tf:32",
+          "infrastructure/modules/glue/main.tf:37"
+        ]
+      }
+    },
+    "T2.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 12.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "glue-scripts/transform.py:45",
+          "glue-scripts/transform.py:92",
+          "glue-scripts/transform.py:122"
+        ]
+      }
+    },
+    "T2.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/glue/outputs.tf:1",
+          "docs/lab2-extend-output.txt"
+        ]
+      }
+    },
+    "T2.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 0,
+        "needs_review": true,
+        "flags": [
+          "Latest committed verifier result for transform job is not PASS"
+        ],
+        "evidence": []
+      }
+    },
+    "T3.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 10.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "glue-scripts/feature_engineer.py:61",
+          "glue-scripts/feature_engineer.py:79",
+          "glue-scripts/feature_engineer.py:159",
+          "glue-scripts/feature_engineer.py:178",
+          "glue-scripts/feature_engineer.py:212"
+        ]
+      }
+    },
+    "T3.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "glue-scripts/feature_engineer.py:61",
+          "glue-scripts/feature_engineer.py:79",
+          "glue-scripts/feature_engineer.py:212"
+        ]
+      }
+    },
+    "T3.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 0.5,
+        "needs_review": true,
+        "flags": [
+          "Feature definitions/types incomplete (0/16 parsed)",
+          "Online/offline store separation not established"
+        ],
+        "evidence": [
+          "infrastructure/modules/feature_store/main.tf:43"
+        ]
+      }
+    },
+    "T3.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 0,
+        "needs_review": true,
+        "flags": [
+          "Latest committed verifier result for feature-engineer job is not PASS"
+        ],
+        "evidence": []
+      }
+    },
+    "T4.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 8.0,
+        "needs_review": true,
+        "flags": [
+          "TA must assess schema, measurable guarantees, numeric SLA and breaking-change policy"
+        ],
+        "evidence": [
+          "docs/lab2-data-contract.md"
+        ]
+      }
+    },
+    "T4.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 7.0,
+        "needs_review": true,
+        "flags": [
+          "TA must inspect flow nodes, formats on edges, and IAM roles on write edges"
+        ],
+        "evidence": [
+          "docs/lab2-data-lineage.png"
+        ]
+      }
+    },
+    "T5.1": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 4.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/glue/main.tf:32",
+          "infrastructure/modules/feature_store/main.tf:43",
+          "infrastructure/environments/local/main.tf:9"
+        ]
+      }
+    },
+    "T5.2": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 3.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/modules/glue/main.tf:32"
+        ]
+      }
+    },
+    "T5.3": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 3.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "infrastructure/",
+          "submitted validation log"
+        ]
+      }
+    },
+    "T5.4": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 3.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "docs/lab2-extend-output.txt"
+        ]
+      }
+    },
+    "T5.5": {
+      "score": null,
+      "reason": "",
+      "evidence": [],
+      "static": {
+        "candidate": 2.0,
+        "needs_review": false,
+        "flags": [],
+        "evidence": [
+          "README.md"
+        ]
+      }
+    }
+  }
+}

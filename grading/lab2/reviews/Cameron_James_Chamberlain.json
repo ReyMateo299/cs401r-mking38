@@ -1,0 +1,190 @@
+{
+  "review_type": "llm",
+  "student_id": "Cameron_James_Chamberlain",
+  "reviewer": "Codex LLM-assisted source, written-work, and submitted-evidence review; TA verification pending",
+  "canvas_summary": "The Terraform and written artifacts cover much of the lab. The README lacks Lab 2 run instructions.",
+  "review_notes": [
+    "TA regrade applies the no-saved-output rule to T3.4 as well: no deduction solely for the absent feature job-run file when the job is configured and apply completed; runtime status remains unverified offline."
+  ],
+  "verification_fail_reviewed": false,
+  "verification_fail_reason": "",
+  "teardown_evidence": "auto",
+  "confirmed_secret": false,
+  "scores": {
+    "T1.1": {
+      "score": 10,
+      "reason": "The VPC source defines public and private subnets, a guarded NAT gateway and private route; the SageMaker Domain is wired to the private subnet with VpcOnly.",
+      "evidence": [
+        "infrastructure/modules/vpc/main.tf",
+        "infrastructure/modules/sagemaker/main.tf",
+        "infrastructure/modules/vpc/main.tf:70",
+        "infrastructure/modules/vpc/main.tf:127",
+        "infrastructure/modules/vpc/main.tf:97",
+        "infrastructure/modules/vpc/main.tf:165",
+        "infrastructure/modules/sagemaker/main.tf:40"
+      ]
+    },
+    "T1.2": {
+      "score": 8,
+      "reason": "The three execution roles and their scoped S3/service policies are present; MLEngineer is limited to feature/artifact writes, DataEngineer to data-prefix writes with script reads, and ModelMonitor to observation.",
+      "evidence": [
+        "infrastructure/modules/iam/main.tf",
+        "infrastructure/modules/iam/main.tf:32"
+      ]
+    },
+    "T1.3": {
+      "score": 4,
+      "reason": "The storage source defines the five required raw, processed, feature, and datacapture retention rules with the assigned durations.",
+      "evidence": [
+        "infrastructure/modules/storage/main.tf",
+        "infrastructure/modules/storage/main.tf:96"
+      ]
+    },
+    "T1.4": {
+      "score": 3,
+      "reason": "The local environment disables NAT, and the submitted LocalStack output supports the VPC, three IAM roles, and a successful local apply.",
+      "evidence": [
+        "infrastructure/environments/local/main.tf",
+        "docs/lab2-localstack-output.txt"
+      ]
+    },
+    "T2.1": {
+      "score": 6,
+      "reason": "The Terraform configuration defines the northstar_dev database and raw/customers crawler, and the apply log shows those resources were created. Under the older rubric supplied by the TA, get-table had to return a schema, but saving its output was not required. The absent verifier file alone is not deducted; the historical table result cannot be independently confirmed offline.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T2.2": {
+      "score": 12,
+      "reason": "The transform implements typed casting and both date formats, null-ID filtering, median and unknown imputation, and deterministic transaction_id deduplication; saved data checks support transaction grain.",
+      "evidence": [
+        "glue-scripts/transform.py",
+        "glue-scripts/transform.py:45",
+        "glue-scripts/transform.py:92",
+        "glue-scripts/transform.py:116"
+      ]
+    },
+    "T2.3": {
+      "score": 4,
+      "reason": "The Glue module wires the crawler, private connection, both jobs, and Terraform-managed script uploads; the submitted apply completed.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "docs/lab2-extend-output.txt",
+        "infrastructure/modules/glue/outputs.tf:1"
+      ]
+    },
+    "T2.4": {
+      "score": 3,
+      "reason": "The Terraform configuration defines the transform job and the saved apply log records a clean apply. The older rubric required get-job-run to return SUCCEEDED but did not require saving that output. No verifier result is available to independently confirm the historical run; absence of the output file alone is not deducted.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T3.1": {
+      "score": 10,
+      "reason": "The feature script implements the five required functions, customer-level RFM, tiers, bounded churn proxy, and outcome-window label; the saved output checks support feature completeness.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py",
+        "glue-scripts/feature_engineer.py:61",
+        "glue-scripts/feature_engineer.py:79",
+        "glue-scripts/feature_engineer.py:125",
+        "glue-scripts/feature_engineer.py:145",
+        "glue-scripts/feature_engineer.py:172"
+      ]
+    },
+    "T3.2": {
+      "score": 4,
+      "reason": "The code anchors features to the fixed observation cutoff and derives the label from later purchases; saved checks support the temporal separation.",
+      "evidence": [
+        "glue-scripts/feature_engineer.py",
+        "glue-scripts/feature_engineer.py:61",
+        "glue-scripts/feature_engineer.py:79",
+        "glue-scripts/feature_engineer.py:172"
+      ]
+    },
+    "T3.3": {
+      "score": 3,
+      "reason": "The Feature Group source defines 16 names and types, including Fractional event_time and Integral churn_label, via explicit or dynamic blocks; online and offline stores are configured.",
+      "evidence": [
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/feature_store/main.tf:12"
+      ]
+    },
+    "T3.4": {
+      "score": 3,
+      "reason": "The Terraform module defines the feature-engineering job, and the saved apply log shows a clean apply. Under the TA direction applying the legacy no-saved-output rule to T3.4, absence of a committed feature job-run result is not deducted. The historical SUCCEEDED state is not independently verifiable offline.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T4.1": {
+      "score": 8,
+      "reason": "The contract identifies producer and consumers, states transaction grain, lists nine typed columns with nullability, at least three measurable guarantees, a two-hour freshness target, and a new-prefix/five-business-day breaking-change policy.",
+      "evidence": [
+        "docs/lab2-data-contract.md",
+        "docs/lab2-data-contract.md:13",
+        "docs/lab2-data-contract.md:19",
+        "docs/lab2-data-contract.md:33",
+        "docs/lab2-data-contract.md:43",
+        "docs/lab2-data-contract.md:47"
+      ]
+    },
+    "T4.2": {
+      "score": 7,
+      "reason": "The visually inspected diagram includes the source, raw S3, crawler, catalog, transform, processed S3, feature job, feature S3, and Feature Store, with formats and write-role labels on the edges.",
+      "evidence": [
+        "docs/lab2-data-lineage.png"
+      ]
+    },
+    "T5.1": {
+      "score": 4,
+      "reason": "Glue and Feature Store have separate Terraform modules wired from the dev environment without conflicting duplicate resources.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:18",
+        "infrastructure/modules/feature_store/main.tf:12",
+        "infrastructure/environments/local/main.tf:9"
+      ]
+    },
+    "T5.2": {
+      "score": 3,
+      "reason": "New Glue and Feature Store resource names use project/environment variables or module inputs instead of fixed deployed names.",
+      "evidence": [
+        "infrastructure/modules/glue/main.tf",
+        "infrastructure/modules/feature_store/main.tf",
+        "infrastructure/modules/glue/main.tf:18"
+      ]
+    },
+    "T5.3": {
+      "score": 3,
+      "reason": "The offline Terraform format check passed, and the committed successful apply provides historical configuration evidence without accessing AWS.",
+      "evidence": [
+        "infrastructure",
+        "docs/lab2-extend-output.txt",
+        "infrastructure/",
+        "submitted validation log"
+      ]
+    },
+    "T5.4": {
+      "score": 3,
+      "reason": "The committed extension log records a successful Terraform apply involving the SageMaker Domain.",
+      "evidence": [
+        "docs/lab2-extend-output.txt"
+      ]
+    },
+    "T5.5": {
+      "score": 0,
+      "reason": "The README is a general course overview; it does not describe the Lab 2 modules or an end-to-end run sequence.",
+      "evidence": [
+        "README.md:29",
+        "README.md:71",
+        "README.md"
+      ]
+    }
+  }
+}
