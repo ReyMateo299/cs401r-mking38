@@ -8,3 +8,9 @@ __pycache__/
 .DS_Store
 *.zip
 .aws/
+
+# Lab 4: data staged locally or by CodeBuild (data/feature_engineering.py stays tracked)
+data/*.csv
+data/processed/
+data/features/
+reports/
