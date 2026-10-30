@@ -20,9 +20,13 @@ Run locally (after the local training run in the lab handout):
         --eval-metrics-path /tmp/out/evaluation_metrics.json
 """
 
+import io
 import json
 import os
+import warnings
 from pathlib import Path
+
+import boto3
 
 import numpy as np
 import pandas as pd
@@ -352,6 +356,92 @@ class TestModelRobustness:
 
 # ── Stored Metrics Quality Gate ────────────────────────────────────────────────
 
+# ── Champion lookup (regression gate) ─────────────────────────────────────────
+#
+# The champion is the newest APPROVED package, never just the newest package:
+# the SageMaker Pipeline registers the candidate (PendingManualApproval) before
+# CodeBuild runs this file, so "newest" would compare the candidate with itself.
+# A pipeline-registered package carries its AUC only in ModelMetrics, which
+# points at the evaluation_metrics.json the training job wrote.
+
+MODEL_PACKAGE_GROUP = os.environ.get("MODEL_PACKAGE_GROUP", "northstar-churn-models")
+REGRESSION_TOLERANCE = 0.02   # handout: new AUC >= champion AUC - 0.02
+
+
+def regresses(new_auc, champ_auc, tolerance=REGRESSION_TOLERANCE):
+    """True if the candidate is worse than the champion by more than the tolerance."""
+    return new_auc < champ_auc - tolerance
+
+
+def champion_from_registry(sm=None, s3=None, group=MODEL_PACKAGE_GROUP):
+    """(package ARN, champion auc_roc), or None if no package is Approved yet.
+
+    Registry and S3 errors propagate: a registry the build cannot read is a
+    failure, not a reason to skip the gate.
+    """
+    sm = sm or boto3.client("sagemaker")
+    s3 = s3 or boto3.client("s3")
+    resp = sm.list_model_packages(ModelPackageGroupName=group, ModelApprovalStatus="Approved",
+                                  SortBy="CreationTime", SortOrder="Descending", MaxResults=1)
+    if not resp["ModelPackageSummaryList"]:
+        return None
+    arn = resp["ModelPackageSummaryList"][0]["ModelPackageArn"]
+    pkg = sm.describe_model_package(ModelPackageName=arn)
+    meta = pkg.get("CustomerMetadataProperties") or {}
+    if "auc_roc" in meta:
+        return arn, float(meta["auc_roc"])
+    for section in (pkg.get("ModelMetrics") or {}).values():          # pipeline-registered packages
+        for src in section.values():
+            if isinstance(src, dict) and src.get("S3Uri", "").endswith("evaluation_metrics.json"):
+                bucket, _, key = src["S3Uri"][len("s3://"):].partition("/")
+                body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+                return arn, float(json.loads(body)["auc_roc"])
+    raise AssertionError(f"Champion {arn} carries no auc_roc in metadata or ModelMetrics")
+
+
+class TestChampionRegression:
+    """Offline checks of the regression gate: no AWS, no trained model."""
+
+    def test_regression_rule_at_boundary(self):
+        assert not regresses(0.7300, 0.75), "exactly champion - 0.02 is allowed"
+        assert not regresses(0.7600, 0.75), "a better candidate passes"
+        assert regresses(0.7299, 0.75), "more than 0.02 below the champion must fail"
+
+    def test_lookup_asks_for_approved_and_follows_model_metrics(self):
+        arn = "arn:aws:sagemaker:us-east-1:123456789012:model-package/northstar-churn-models/3"
+        uri = "s3://northstar-dev-data-123456789012/artifacts/evaluations/abc12345/evaluation_metrics.json"
+
+        class FakeSageMaker:
+            def __init__(self):
+                self.list_kwargs = None
+
+            def list_model_packages(self, **kwargs):
+                self.list_kwargs = kwargs
+                return {"ModelPackageSummaryList": [{"ModelPackageArn": arn}]}
+
+            def describe_model_package(self, ModelPackageName):
+                assert ModelPackageName == arn
+                return {"ModelMetrics": {"ModelQuality": {"Statistics": {
+                    "ContentType": "application/json", "S3Uri": uri}}}}
+
+        class FakeS3:
+            def get_object(self, Bucket, Key):
+                assert (Bucket, Key) == ("northstar-dev-data-123456789012",
+                                         "artifacts/evaluations/abc12345/evaluation_metrics.json")
+                return {"Body": io.BytesIO(json.dumps({"auc_roc": 0.7712}).encode())}
+
+        sm = FakeSageMaker()
+        assert champion_from_registry(sm, FakeS3()) == (arn, 0.7712)
+        assert sm.list_kwargs["ModelApprovalStatus"] == "Approved", "champion must be Approved, not newest"
+        assert sm.list_kwargs["SortOrder"] == "Descending" and sm.list_kwargs["MaxResults"] == 1
+
+        class EmptyRegistry(FakeSageMaker):
+            def list_model_packages(self, **kwargs):
+                return {"ModelPackageSummaryList": []}
+
+        assert champion_from_registry(EmptyRegistry(), FakeS3()) is None
+
+
 class TestStoredMetricsGate:
     """
     Reads the evaluation_metrics.json saved by the training script and
@@ -424,3 +514,19 @@ class TestStoredMetricsGate:
             f"The reference dataset measures 22.0%. Check that your validation "
             f"split is stratified."
         )
+
+
+    def test_candidate_not_worse_than_champion(self, eval_metrics):
+        """Regression gate against the live registry. Skips only when no package
+        is Approved yet (the first approved model becomes the champion)."""
+        champ = champion_from_registry()
+        if champ is None:
+            pytest.skip("no Approved package yet: the first approved model becomes the champion")
+        arn, champ_auc = champ
+        version = arn.rsplit("/", 1)[-1]
+        assert "auc_roc" in eval_metrics, "candidate metrics carry no auc_roc"
+        new_auc = float(eval_metrics["auc_roc"])
+        warnings.warn(f"champion v{version} auc={champ_auc:.4f}; candidate auc={new_auc:.4f}")
+        assert not regresses(new_auc, champ_auc), (
+            f"candidate auc {new_auc:.4f} regresses vs champion v{version} auc {champ_auc:.4f} "
+            f"(tolerance {REGRESSION_TOLERANCE})")

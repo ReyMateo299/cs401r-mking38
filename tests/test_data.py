@@ -69,6 +69,8 @@ FEATURE_COLUMNS = [
 VALID_TIERS = {"Bronze", "Silver", "Gold", "Platinum"}
 VALID_CHANNELS = {"store", "online", "unknown"}
 
+MAX_FEATURE_AGE_HOURS = float(os.environ.get("MAX_FEATURE_AGE_HOURS", "48"))
+
 
 def _require(path_desc, found):
     """Fail loudly unless the student explicitly opted into deferral."""
@@ -286,20 +288,24 @@ class TestFeatures:
             "you anchored to FEATURE_CUTOFF and not to today()"
         )
 
-    # TODO: Add a test proving no feature used post-cutoff data.
-    # Careful: processed/ CONTAINS the holdout purchases (after FEATURE_CUTOFF),
-    # because the label is built from them, so "every customer's max
-    # purchase_date is <= FEATURE_CUTOFF" is false on correct data. Test the
-    # FEATURES instead: recompute the time-sensitive ones (recency, tenure, the
-    # 30/90/180-day frequencies) from processed rows with purchase_date <=
-    # FEATURE_CUTOFF -- your data/feature_engineering.py functions do this --
-    # and assert they equal what the pipeline wrote to features/.
+    def test_no_feature_uses_post_cutoff_data(self, processed_df, features_df):
+        from data.feature_engineering import compute_frequency_features, compute_recency_features
+        hist = processed_df[processed_df["purchase_date"] <= FEATURE_CUTOFF]
+        ids = features_df["customer_id"]
+        rec = compute_recency_features(hist, FEATURE_CUTOFF, ids).set_index("customer_id")
+        frq = compute_frequency_features(hist, FEATURE_CUTOFF, ids).set_index("customer_id")
+        shipped = features_df.set_index("customer_id")
+        for col, ref in [("days_since_last_purchase", rec), ("customer_tenure_days", rec),
+                        ("purchase_frequency_30d", frq), ("purchase_frequency_90d", frq),
+                        ("purchase_frequency_180d", frq)]:
+            bad = int(((shipped[col] - ref[col].reindex(shipped.index)).abs() > 1e-6).sum())
+            assert bad == 0, f"{col} differs from the value recomputed from purchases <= T for {bad} customers"
 
-    # TODO: Add a freshness test. The pipeline should refuse to train on a
-    # feature set older than 48 hours. event_time is Fractional epoch seconds:
-    # the wall-clock time your Lab 2 feature job ran, NOT the cutoff T.
-    # Consequence: re-run the northstar-dev-feature-engineer Glue job (~90 s)
-    # before any session in which you will push, or this test fails the build.
+    def test_features_are_fresh(self, features_df):
+        latest = pd.to_datetime(float(features_df["event_time"].max()), unit="s", utc=True)
+        age_h = (pd.Timestamp.now(tz="UTC") - latest).total_seconds() / 3600
+        assert age_h < MAX_FEATURE_AGE_HOURS, (
+            f"Feature set is {age_h:.1f} h old; re-run northstar-dev-feature-engineer")
 
 
 # ── Cross-dataset consistency ─────────────────────────────────────────────────
