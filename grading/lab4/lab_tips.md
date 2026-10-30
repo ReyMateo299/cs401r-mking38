@@ -49,6 +49,10 @@ compute_behavioral_features(transactions, as_of=FEATURE_CUTOFF, customer_ids=Non
 build_churn_feature_set(customers, transactions, snapshot_date)
 ```
 
+- **The walkthrough's code block is partial.** It shows the helpers plus the
+  monetary and behavioral functions. You still write `_ids()`, recency,
+  frequency and `build_churn_feature_set`, and you add `import numpy as np`.
+  Replace the empty stubs; don't paste the block underneath them.
 - **Copy your Glue job's definitions exactly.** Windows are
   `purchase_date > T − N days` (strictly after), history is
   `purchase_date <= T`, and `T = 2026-04-01`. `avg_basket_size_6m` is
@@ -91,9 +95,18 @@ That applies to the failure demo and the revert too.
 Two placeholder tests in `test_features.py` pass while doing nothing (the
 zero-purchase sentinel test and the null-count test). Fill them in; the TA
 reads the bodies, not just the PASSED lines. The kit's 18 tests are almost all
-"normal" cases, so add your own **boundary** cases (a purchase on T, a
-purchase exactly 90 days before T) and **edge** cases (a single transaction,
-an `unknown` category).
+"normal" cases. The handout defines the other two, and the kit ships neither
+as a working test:
+
+- **Boundary:** a customer with 0 purchases. The sentinel placeholder becomes
+  this test once you uncomment it.
+- **Edge:** a customer with a single transaction. Nothing in the kit covers
+  it, so write it yourself. With one purchase, recency equals tenure and
+  `avg_order_value` equals `total_lifetime_value`.
+
+Window tests are worth adding on top: a purchase dated on T, and one exactly
+90 days before T, which is in the 180-day window but not the 90-day one. They
+catch the `>` vs `>=` mistake.
 
 Keep downloaded data out of git. If you stage it under `./data/`, add
 `data/*.csv`, `data/processed/`, `data/features/` and `reports/` to

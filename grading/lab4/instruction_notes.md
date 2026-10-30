@@ -343,3 +343,34 @@ All verified by reading. Instructor notes only.
   `test_fairness.py` run in `build`. The Task 2 phase list also says "Test —
   runs `pytest tests/`." Suggest: "Test — `pre_build` runs the data and feature
   tests; the model and fairness tests run after training, in `build`."
+
+## 13. The Phase 1 walkthrough snippet looks complete but isn't
+
+**Finding (verified by reading, and by my own run-through on 2026-10-29).**
+Under "The core of it", Phase 1 of the solution notes shows a code block that
+reads like a finished module. It is about 40% of one:
+
+- No `import numpy as np`, which `compute_monetary_features` uses.
+- No `_ids()`, which both functions it shows call.
+- No `compute_recency_features`, `compute_frequency_features` or
+  `build_churn_feature_set`. The prose says they "follow the same pattern".
+
+The equivalence snippet also calls `build_churn_feature_set(None, proc)`. The
+signature it gives takes a required `snapshot_date`, so that call raises
+`TypeError`. The snippet also leaves `D` and `FEATURE_COLUMNS` undefined.
+
+**Why it blocks students.** I pasted the block under the five empty stubs and
+got a module that fails on import (`NameError` on `np` or `_ids`). Three of
+the five functions still take no arguments, so `pre_build` fails with
+`Could not import data.feature_engineering`. Students also come away unsure
+whether the port is meant to match the Glue job or replace it.
+
+**Belongs in:** Both. Instructor notes for the fix; a student tip that the
+snippet is partial.
+
+**Suggested revision.** Label the block "Partial: you still write `_ids`,
+recency, frequency and `build_churn_feature_set`". Add the imports. Change the
+equivalence call to
+`build_churn_feature_set(None, proc, FEATURE_CUTOFF)`, with `customers=None`
+allowed. Add one sentence: "Glue stays the production job. This module is a
+copy that the leakage test in 2.2 checks against Glue's output on every build."
