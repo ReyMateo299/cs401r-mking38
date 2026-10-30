@@ -1,0 +1,62 @@
+{
+    "ModelPackageSummaryList": [
+        {
+            "ModelPackageGroupName": "northstar-churn-models",
+            "ModelPackageVersion": 6,
+            "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/6",
+            "CreationTime": "2026-10-30T04:24:36.114000-06:00",
+            "ModelPackageStatus": "Completed",
+            "ModelApprovalStatus": "PendingManualApproval",
+            "ModelPackageRegistrationType": "Registered"
+        },
+        {
+            "ModelPackageGroupName": "northstar-churn-models",
+            "ModelPackageVersion": 5,
+            "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/5",
+            "CreationTime": "2026-10-30T03:07:12.113000-06:00",
+            "ModelPackageStatus": "Completed",
+            "ModelApprovalStatus": "Approved",
+            "ModelPackageRegistrationType": "Registered"
+        },
+        {
+            "ModelPackageGroupName": "northstar-churn-models",
+            "ModelPackageVersion": 4,
+            "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/4",
+            "ModelPackageDescription": "XGBoost churn, AUC 0.7835, lift 0.0603 CI [0.0407, 0.0798]",
+            "CreationTime": "2026-10-13T09:56:35.780000-06:00",
+            "ModelPackageStatus": "Completed",
+            "ModelApprovalStatus": "PendingManualApproval",
+            "ModelPackageRegistrationType": "Registered"
+        },
+        {
+            "ModelPackageGroupName": "northstar-churn-models",
+            "ModelPackageVersion": 3,
+            "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/3",
+            "ModelPackageDescription": "XGBoost churn, AUC 0.7835, lift 0.0603 CI [0.0407, 0.0798]",
+            "CreationTime": "2026-10-10T22:31:11.525000-06:00",
+            "ModelPackageStatus": "Completed",
+            "ModelApprovalStatus": "PendingManualApproval",
+            "ModelPackageRegistrationType": "Registered"
+        },
+        {
+            "ModelPackageGroupName": "northstar-churn-models",
+            "ModelPackageVersion": 2,
+            "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/2",
+            "ModelPackageDescription": "XGBoost churn, AUC 0.7764, lift 0.0532 CI [0.0331, 0.0731]",
+            "CreationTime": "2026-10-10T22:29:22.745000-06:00",
+            "ModelPackageStatus": "Completed",
+            "ModelApprovalStatus": "PendingManualApproval",
+            "ModelPackageRegistrationType": "Registered"
+        },
+        {
+            "ModelPackageGroupName": "northstar-churn-models",
+            "ModelPackageVersion": 1,
+            "ModelPackageArn": "arn:aws:sagemaker:us-east-1:480747229391:model-package/northstar-churn-models/1",
+            "ModelPackageDescription": "XGBoost churn, AUC 0.7792, lift 0.056 CI [0.0372, 0.075]",
+            "CreationTime": "2026-10-10T22:27:46.236000-06:00",
+            "ModelPackageStatus": "Completed",
+            "ModelApprovalStatus": "PendingManualApproval",
+            "ModelPackageRegistrationType": "Registered"
+        }
+    ]
+}
