@@ -16,15 +16,15 @@ me (Matt), not by the assistant.
 | 4 | `PassSelfToSageMaker` statement in `infrastructure/modules/iam/main.tf` | done 2026-10-30 | Statement in MLEngineer policy, `terraform validate` ok; applied (first pipeline run passed TrainChurnModel with no PassRole error) |
 | 5 | Artifacts bucket, GitHub connection `AVAILABLE`, deploy `northstar-cicd`, subscribe + confirm email | done 2026-10-30 | Bucket versioning Enabled; `northstar-github` AVAILABLE; stack CREATE_COMPLETE; mattking29910@gmail.com confirmed (mking38@byu.edu left PendingConfirmation, expires ~2026-11-02, so it may show in snapshots); alarm OK |
 | 6 | Green run → approve champion | done 2026-10-30 | Build `northstar-ci:aa043c70-b106-4603-a354-c49ddeac06b9` on `6fd9275` SUCCEEDED; 28 + 24 pre_build tests passed. **Champion = v5, Approved**; pipeline approval Succeeded. v3/v4 (Oct 10/13, Lab 3) still PendingManualApproval and ignored. Keep v5 Approved until after the 8.3 capture |
-| 7 | Failure demo: BEFORE / AFTER FAILED RUN / AFTER REVERT, failed log, ALARM email png | todo | Record the ALARM→OK interval (instruction note 5) |
-| 8 | Lineage metadata on final package; `lab4-model-package.json`; MLflow ≥ 3 runs → `lab4-mlflow-runs.txt` | todo | |
-| 9 | `docs/lab4-xops-assessment.md` (5 headings) | todo | |
+| 7 | Failure demo: BEFORE / AFTER FAILED RUN / AFTER REVERT, failed log, ALARM email png | done 2026-10-30 | BEFORE 09:53:30Z (v5 newest, alarm OK). Failing commit `9dc1489` → build `63485599-2b2a-472a-8411-31dbff11421c` FAILED in PRE_BUILD (1 failed, 27 passed), no BUILD phase; packages unchanged; ALARM 10:12:47Z, 56 s after the build failed (10:11:51Z). Push did not trigger the pipeline (instruction note 16), so runs were started with `start-pipeline-execution`. `docs/lab4-build-failed.log` saved. A second manual start also ran `9dc1489` (build #3 `95222c89-358c-4721-86ab-97a978f763b5`, FAILED PRE_BUILD; no package). Revert `8a3c5bc` was **push-triggered (Webhook)** → **final green build #4 `northstar-ci:71a0869a-8e86-4b6b-9df3-8ecc666ff782`** SUCCEEDED (5m17s). Its package is left PendingManualApproval; v5 stays champion. ALARM email png saved. AFTER REVERT 10:27:07Z: build #4 SUCCEEDED, v6 Pending above v5 Approved, alarm OK at 10:26:47Z. Use this build ID explicitly for `save_log` in 8.3 |
+| 8 | Lineage metadata on final package; `lab4-model-package.json`; MLflow ≥ 3 runs → `lab4-mlflow-runs.txt` | done 2026-10-30 | 7.1 + 7.2 written in `docs/lab4-xops-assessment.md`. 7.3 done 2026-10-30: `scripts/lab4_mlflow_runs.py` → `docs/lab4-mlflow-runs.txt`, MLflow App `app-X2C7AC6JJGBL`, experiment `northstar-churn-lab4`, 4 runs, all gates passed. The pipeline row reproduces local `train_sagemaker.py` exactly (AUC 0.7777, best iteration 25) after switching to `read_channel()`; row order sets the split. d8-eta0.3 lift CI low 0.0023, a near-fail. 7.4 done: `scripts/lab4_lineage.py 6` → v6 CustomerMetadataProperties (commit `8a3c5bc3`, data `s3://…/features/customers/` last modified 2026-10-29T18:16:36Z, sha256 `f1de72a5…`, job `pipelines-q727bwr8b950-TrainChurnModel-byugwWq8WE`, AUC 0.7855); `docs/lab4-model-package.json` saved |
+| 9 | `docs/lab4-xops-assessment.md` (5 headings) | done 2026-10-30 | All five sections written; maturity sections ~450 words; cites `docs/lab4-build-green.log` and `docs/lab4-pipeline-runs.txt`, which the 8.3 capture creates |
 | 10 | Capture block → delete stack → commit docs → tag `lab4-submit` → teardown | todo | Capture registry JSON before rejecting the champion |
 
 ## Open verification items for instruction_notes.md
 
-- Note 5: does the alarm really return to `OK` ~5 min after a failure without a green build?
-- Does the CodeBuild role's `ListModelPackages` grant work for the regression test? (The grading guide says yes, verified in run 5.)
+- Note 5: does the alarm really return to `OK` ~5 min after a failure without a green build? ALARM came 56 s after the failed build (10:11:51Z → 10:12:47Z). Returned to `OK` at 10:26:47Z, about 1 min after green build #4 finished. The extra failed build #3 (~10:19Z) kept it in `ALARM` until then, so I couldn't observe an unaided ALARM→OK.
+- Does the CodeBuild role's `ListModelPackages` grant work for the regression test? **Yes, verified 2026-10-30.** In final green build `71a0869a`, `test_candidate_not_worse_than_champion` PASSED with `champion v5 auc=0.7855; candidate auc=0.7855`. Model gate: 27 passed, 0 skipped. FAIRNESS FLAG 35.1% Bronze vs Platinum.
 
 ## Decisions and deviations from the walkthrough
 
@@ -73,3 +73,4 @@ me (Matt), not by the assistant.
     `champion v5 auc=0.7855`.
 - **For Phase 8.** Mention this in `docs/lab4-xops-assessment.md` as a deliberate
   behavioural constraint encoding the business rule, not a workaround.
+- Note 16 (push trigger): **confirmed.** Pushes did not trigger until the GitHub App was installed. After installing it, the revert push `8a3c5bc` triggered execution type `Webhook` with no `pipeline.yaml` change. The install created a second connection (`023577e6…`), which is unused; the pipeline still uses `e9ffcd2a…`. Delete the spare at teardown.

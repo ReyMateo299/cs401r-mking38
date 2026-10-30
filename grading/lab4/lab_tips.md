@@ -188,6 +188,14 @@ even for a docs-only commit. Batch your commits.
   empty `lab4-build-green.log` usually means the wrong build ID.
 - **Capture `lab4-model-registry.json` before setting your champion to
   `Rejected`.** The rubric needs to see it `Approved`.
+- **MLflow runs: load the data the way the pipeline does.** The 7.3 snippet
+  leaves `df` undefined. If you build it with your own `glob` and
+  `pd.concat`, the rows arrive in a different order. `train_test_split`
+  then makes a different split, and your "pipeline settings" run won't match
+  the pipeline's numbers (mine read AUC 0.7811 instead of 0.7777). Use
+  `from train_sagemaker import read_channel`, which sorts the files,
+  deduplicates and sorts by `customer_id`, then `df = read_channel(<features dir>)`.
+  Put `models/churn/` on `sys.path` first.
 - **Delete the CI stack before your final docs commit**, or that push trains
   once more.
 - Re-define `AB=northstar-dev-cicd-artifacts-<account>` before teardown; your

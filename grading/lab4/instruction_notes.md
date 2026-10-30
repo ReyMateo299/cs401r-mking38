@@ -439,3 +439,37 @@ property guaranteed.
 `grading/lab4/progress.md` ("Decisions") has the before/after numbers once
 I've retrained. If the professor wants students to do the same, the
 walkthrough's 2.3 and Phase 3 should mention it.
+
+## 16. Pushes may never trigger the pipeline, and the automatic first run hides it
+
+**Finding (verified on my run, 2026-10-30).** After 5.3, `list-pipeline-executions`
+showed one execution, triggered by `CreatePipeline`. My push of `9dc1489` (the
+6.3 failure commit) started nothing, so the alarm never fired.
+
+Verified facts:
+
+- The connection read `AVAILABLE`.
+- The GitHub App "AWS Connector for GitHub" appeared under **Authorized**
+  GitHub Apps but not **Installed**.
+- The stack's pipeline is `pipelineType: V2` with `triggers: null`, because
+  `pipeline.yaml` sets neither. `DetectChanges` is `true`.
+
+**Confirmed afterwards:** the missing installation was the cause. Once I installed the app (Configure → `cs401r-<netid>`), the next push (`8a3c5bc`) started an execution with trigger type `Webhook`, with no change to `pipeline.yaml`. Installing created a second, unused connection with the same name, `northstar-github`. Earlier I had assumed the missing installation was the cause. A user
+authorization is enough to fetch source, which is why the creation run
+works, but push events come from an installed app. A V2 pipeline with no
+explicit trigger may also play a part. I bypassed it by starting runs with
+`start-pipeline-execution` instead of confirming the fix.
+
+**Why it blocks students.** 6.3 waits for an alarm that never comes, and
+nothing says why. The first green run looks like proof the pipeline works.
+Task 2's Source phase ("triggered by push to `main`") can't be shown.
+
+**Belongs in:** Both.
+
+**Suggested revision.** In 5.2, say that the app must be *installed* on the
+repo owner's account with `cs401r-<netid>` selected, not only authorized.
+Verify with `https://github.com/<owner>/<repo>/settings/installations`. After
+5.3, add a check: push a trivial commit, or check after the first real push,
+and confirm `list-pipeline-executions` shows a push-triggered row. An explicit
+V2 `Triggers:` block in `pipeline.yaml` turned out to be unnecessary. Student tip: if no build starts within a minute
+of a push, check executions before waiting on the alarm.
