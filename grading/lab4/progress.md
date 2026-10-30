@@ -12,7 +12,7 @@ me (Matt), not by the assistant.
 | 0c | Pre-flight: Lab 2 up, feature job < 48 h, spot quota ≥ 1, Python 3.11 venv | todo | |
 | 1 | `data/feature_engineering.py` (pandas port of Glue) + equivalence check | done 2026-10-29 | 18/18 kit tests pass locally (py3.11). `scripts/lab4_feature_equivalence.py` → `docs/lab4-feature-equivalence.txt`: 9,999/9,999 customers, all within 0.0001 (332 rows `avg_order_value`, 15 `online_to_store_ratio`: rounding, Spark HALF_UP) |
 | 2 | `test_data.py` TODOs (post-cutoff leakage, freshness); `test_features.py` TODOs + edge cases; champion regression test; `tests/test_fairness.py` | code complete 2026-10-30, not yet run | `test_features.py` 24 tests; `test_model.py` +3 regression tests (21); `test_fairness.py` 5 logic + 1 model test; `test_data.py` leakage + freshness TODOs done (Matt). Next: run `pytest tests/` locally. Phase 3 must put `slice_results` and `auc_roc` in the metrics |
-| 3 | `churn_model.train()` from `models/churn/train.py`; local `train_sagemaker.py` + `pytest tests/test_model.py` | todo | Lab 3 `train_model()` takes argparse `args`; adapt |
+| 3 | `churn_model.train()` from `models/churn/train.py`; local `train_sagemaker.py` + `pytest tests/test_model.py` | in progress | Lab 3 `train_model()` takes argparse `args`. `train()` done with SimpleNamespace adapter; monotone constraint on recency added 2026-10-30 (see Decisions). Local 3.11: gates pass, 26 passed / 1 skipped. Done locally; container numbers pending first green build |
 | 4 | `PassSelfToSageMaker` statement in `infrastructure/modules/iam/main.tf` | todo | `AddTags`/`ListTags` already present (verified) |
 | 5 | Artifacts bucket, GitHub connection `AVAILABLE`, deploy `northstar-cicd`, subscribe + confirm email | todo | |
 | 6 | Green run → approve champion | todo | |
@@ -25,3 +25,46 @@ me (Matt), not by the assistant.
 
 - Note 5: does the alarm really return to `OK` ~5 min after a failure without a green build?
 - Does the CodeBuild role's `ListModelPackages` grant work for the regression test? (The grading guide says yes, verified in run 5.)
+
+## Decisions and deviations from the walkthrough
+
+### 2026-10-30: monotone constraint on recency in `train_model`
+
+- **Problem.** The local 3.11 run (xgboost 3.2.0) reproduced the walkthrough's
+  numbers exactly: AUC 0.7796, lift CI low 0.0366, best iteration 36. But
+  `test_model_monotone_on_recency` failed with `[(60, 90, 0.054)]`; scores
+  were 0.238, 0.403, 0.450, 0.396, 0.724, 0.849. The walkthrough's only
+  monotonicity fix, the tolerant 0.02 test, is already in my kit; this dip is
+  beyond it. Instruction note 15 has the details.
+- **Change.** `models/churn/churn_model.py`, in `train_model()` params:
+  `monotone_constraints` = 1 on `days_since_last_purchase` and 0 on the other
+  ten features. It's built from `FEATURE_COLUMNS`, so the order can't drift.
+  The kit's test is unchanged.
+- **Why this option.** Every split on recency must give higher recency a
+  value ≥ lower recency, so the score can't fall as dormancy grows. That holds
+  in every XGBoost version, including the container's 1.7, and CI tests the
+  container's model, not my local one. I rejected two alternatives: making the
+  test's probe customer realistic (it fixes the test, not the model) and
+  raising the tolerance (it accepts the dip).
+- **Cost to check.** The model is less flexible on recency. I have to retrain
+  on 3.11 and confirm that the lift CI low stays > 0 (was 0.0366) and P@10 stays
+  ≥ 0.50 (was 0.7067). Record the new numbers here.
+  - **Result (local, 3.11 / xgboost 3.2.0, 2026-10-30): all gates pass.**
+
+    | Metric | Before | After constraint |
+    |---|---|---|
+    | AUC | 0.7796 | 0.7777 |
+    | Baseline AUC | 0.7233 | 0.7233 |
+    | Lift 95% CI | [0.0366, —] | [0.0348, 0.0732] |
+    | P@10 / R@10 | 0.7067 / 0.3212 (walkthrough ref) | 0.7033 / 0.3197 |
+    | Best iteration | 36 | 25 |
+    | `test_model.py` + `test_fairness.py` | monotonicity FAILED | **26 passed, 1 skipped** (no Approved package yet) |
+
+    The constraint cost 0.0019 AUC and 0.0018 of lift-CI margin, so the lift
+    CI still clears 0 comfortably. Slices: Bronze rec@10 0.4432, Silver
+    0.1770, Gold 0.1538, Platinum 0.1429 (21 positives, so just reliable).
+    The fairness flag now reads Bronze vs Platinum, about 30.0 pp.
+    The container (xgboost 1.7) will give different numbers; check them in the
+    first green build log.
+- **For Phase 8.** Mention this in `docs/lab4-xops-assessment.md` as a deliberate
+  behavioural constraint encoding the business rule, not a workaround.

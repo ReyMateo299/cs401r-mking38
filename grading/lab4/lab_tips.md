@@ -137,7 +137,9 @@ Keep downloaded data out of git. If you stage it under `./data/`, add
   container lacks the first two.
 - **Lab 3's `train_model()` probably takes an argparse `args`.** In `train()`
   there's no command line, so build a hyperparameter dict (or a
-  `types.SimpleNamespace`) instead.
+  `types.SimpleNamespace`) instead. If you copy a sample `train()` that calls
+  `train_model(..., hp, seed=seed)`, change the call to match your own
+  function's signature. Also import `train_test_split`.
 - **Keep `evaluate_model()` raising on a failed gate.** That failure is what
   stops a bad model from being registered.
 - **Pass tiers through the same `train_test_split` call**, as

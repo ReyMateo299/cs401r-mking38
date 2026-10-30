@@ -374,3 +374,68 @@ equivalence call to
 `build_churn_feature_set(None, proc, FEATURE_CUTOFF)`, with `customers=None`
 allowed. Add one sentence: "Glue stays the production job. This module is a
 copy that the leakage test in 2.2 checks against Glue's output on every build."
+
+## 14. The Phase 3 `train()` sample calls a `train_model` signature that Lab 3 doesn't have
+
+**Finding (verified by reading, 2026-10-30).** The solution notes' `train()`
+calls `train_model(X_train, y_train, X_val, y_val, hp, seed=seed)`: a dict
+plus a `seed` keyword. Lab 3's `train_model()`, in both the template and
+`models/churn/train.py`, is `train_model(X_train, y_train, X_val, y_val, args)`.
+It reads attributes (`args.max_depth`, `args.scale_pos_weight`,
+`args.num_round`), takes no `seed`, and writes `args.resolved_scale_pos_weight`.
+The sample also uses `train_test_split` without showing its import.
+
+**Why it blocks students.** A student who pastes their Lab 3 functions plus the
+sample `train()`, as I did, gets a `NameError` (`train_test_split`), then a
+`TypeError` (`seed`), then an `AttributeError` (dict has no `max_depth`). That
+costs a 6-minute pipeline run each time if they skip the local test.
+`HYPERPARAMETERS` also has no `scale_pos_weight` key, which Lab 3's
+`train_model` reads.
+
+**Belongs in:** Both. The fix goes in the instructor notes; the student tip
+is "adapt the call to your Lab 3 signature".
+
+**Suggested revision.** Show the adapter that matches Lab 3:
+`args = SimpleNamespace(**HYPERPARAMETERS, scale_pos_weight=None)` and
+`train_model(X_train, y_train, X_val, y_val, args)`. Alternatively, say
+outright that the sample assumes a refactored `train_model(..., params, seed)`.
+Add `from sklearn.model_selection import train_test_split` to the snippet.
+
+## 15. The recency monotonicity test probes impossible customers and fails on the reference numbers
+
+**Finding (verified on my local run, 2026-10-30).** My model reproduced the
+walkthrough's Phase 3 local numbers exactly: AUC 0.7796, lift CI low 0.0366,
+best iteration 36, xgboost 3.2.0. Even so, `test_model_monotone_on_recency`
+failed: `[(60, 90, 0.054)]`, with scores 0.238, 0.403, 0.450, 0.396, 0.724,
+0.849. The walkthrough says to expect "26 passed and 1 skipped". *Assumption:*
+the reference run used a different probe or a different model; I can't tell
+which.
+
+The probe holds every other feature fixed while recency goes from 5 to 200
+days, which produces combinations that can't occur:
+
+- `purchase_frequency_30d = 2` and `purchase_frequency_180d = 6`, even at
+  recency 60–200 days;
+- `avg_basket_size_6m = 85.0`, which is a dollar-scale value. The feature is
+  items per order, usually 1–5.
+
+A tree model has never seen these rows, so its scores there are arbitrary.
+
+**Why it blocks students.** A model that passes every real gate fails CI, and
+the student can't tell whether their model or the test is wrong. Container
+XGBoost (1.7) builds different trees, so the test may pass or fail
+differently there.
+
+**Belongs in:** Both.
+
+**Suggested revision.** Make the probe consistent with its recency: zero the
+frequencies whose windows the recency excludes, and use a realistic basket
+(around 3 items). Alternatively, tell students to add
+`monotone_constraints` on `days_since_last_purchase` if they want the
+property guaranteed.
+
+**What I did (2026-10-30).** I added `monotone_constraints` (1 on
+`days_since_last_purchase`) to `train_model` and left the test unchanged.
+`grading/lab4/progress.md` ("Decisions") has the before/after numbers once
+I've retrained. If the professor wants students to do the same, the
+walkthrough's 2.3 and Phase 3 should mention it.
