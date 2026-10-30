@@ -1,0 +1,21 @@
+Feature equivalence: data/feature_engineering.py vs Glue features/ (/tmp/lab4data)
+T = 2026-04-01; processed rows = 157627
+customers: glue = 9999, pandas = 9999 matched, pandas-only = 0
+
+column                       max_abs_diff rows_diff rows_>tol
+days_since_last_purchase         0.000000         0         0
+customer_tenure_days             0.000000         0         0
+purchase_frequency_30d           0.000000         0         0
+purchase_frequency_90d           0.000000         0         0
+purchase_frequency_180d          0.000000         0         0
+avg_order_value                  0.000100       332         0
+total_spend_90d                  0.000000         0         0
+total_lifetime_value             0.000000         0         0
+avg_basket_size_6m               0.000000         0         0
+category_diversity_score         0.000000         0         0
+online_to_store_ratio            0.000100        15         0
+churn_risk_score                 0.000000         0         0
+churn_label                      0.000000         0         0
+loyalty_tier                                      0         0
+
+RESULT: MATCH (differences within 0.0001 rounding)
