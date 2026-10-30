@@ -171,7 +171,7 @@ class TestProcessedData:
 
     def test_no_null_customer_id(self, processed_df):
         n = processed_df["customer_id"].isna().sum()
-        assert n == 999, f"{n} rows with null customer_id survived the transform"
+        assert n == 0, f"{n} rows with null customer_id survived the transform"
 
     def test_no_duplicate_transactions(self, processed_df):
         n = processed_df["transaction_id"].duplicated().sum()
