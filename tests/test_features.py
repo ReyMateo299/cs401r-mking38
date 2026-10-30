@@ -157,11 +157,13 @@ class TestRecencyFeatures:
         empty_txns = pd.DataFrame(columns=["customer_id", "purchase_date", "order_value"])
         customer_ids = pd.DataFrame({"customer_id": ["CUST-NODATA"]})
 
-        # TODO: Your function should handle customers with no transactions
-        # Expected behavior: return days_since_last_purchase = 999 (or configurable sentinel)
-        # features = compute_recency_features(empty_txns, SNAPSHOT_DATE, customer_ids)
-        # assert features.iloc[0]["days_since_last_purchase"] == 999
-        pass
+        features = compute_recency_features(empty_txns, SNAPSHOT_DATE, customer_ids)
+        assert features.iloc[0]["days_since_last_purchase"] == 999, (
+            f"Expected recency sentinel 999, got {features.iloc[0]['days_since_last_purchase']}"
+        )
+        assert features.iloc[0]["customer_tenure_days"] == 0, (
+            f"Expected tenure 0 for a customer with no transactions, got {features.iloc[0]['customer_tenure_days']}"
+        )
 
 
 # ── Frequency Feature Tests ────────────────────────────────────────────────────
@@ -286,8 +288,13 @@ class TestFullFeatureSet:
 
     def test_no_null_features_for_known_customers(self, sample_customers, sample_transactions):
         """
-        TODO: After filling missing values, no feature should be NaN for customers
-        who have at least one transaction. Document your null-filling strategy.
+        After filling missing values, no feature should be NaN for customers
+        who have at least one transaction.
+
+        Null strategy (data/feature_engineering.py): every function reindexes to the
+        full customer list and fills gaps. Recency -> 999 sentinel (0 would mean
+        "bought today"); tenure, counts, spend and averages -> 0; diversity and
+        online ratio -> 0. Glue never emits such rows; the port can be asked about them.
         """
         features = build_churn_feature_set(
             customers=sample_customers,
@@ -298,7 +305,8 @@ class TestFullFeatureSet:
         active_customer_ids = sample_transactions["customer_id"].unique()
         active_features = features[features["customer_id"].isin(active_customer_ids)]
         null_counts = active_features[self.REQUIRED_FEATURES].isna().sum()
-        # TODO: Assert null_counts.sum() == 0 (implement after deciding on null strategy)
+        assert null_counts.sum() == 0, (
+            f"NaN features for active customers: {null_counts[null_counts > 0].to_dict()}")
 
     def test_output_has_customer_id_column(self, sample_customers, sample_transactions):
         features = build_churn_feature_set(
@@ -307,3 +315,92 @@ class TestFullFeatureSet:
             snapshot_date=SNAPSHOT_DATE,
         )
         assert "customer_id" in features.columns, "Output must include customer_id for joining"
+
+
+# ── Boundary and Edge Cases ────────────────────────────────────────────────────
+
+def _txns(*rows):
+    """Processed-grain transactions from (customer_id, days_before_T, order_value,
+    num_items, channel, product_category) tuples. Negative days are after T."""
+    return pd.DataFrame([{
+        "transaction_id": f"TXN-EDGE{n:04d}",
+        "customer_id": cid,
+        "purchase_date": (SNAPSHOT_DATE - timedelta(days=days)).isoformat(),
+        "order_value": value,
+        "num_items": items,
+        "payment_method": "credit_card",
+        "channel": channel,
+        "store_id": "ONLINE" if channel == "online" else "STORE-042",
+        "product_category": category,
+    } for n, (cid, days, value, items, channel, category) in enumerate(rows)])
+
+
+def _row(features, customer_id):
+    return features[features["customer_id"] == customer_id].iloc[0]
+
+
+class TestBoundaryAndEdgeCases:
+
+    def test_single_transaction_customer(self):
+        """Edge: one order 200 days before T. First and last purchase coincide,
+        and the order falls outside every window, so the 180-day basket average
+        hits the guarded denominator: 0 items / max(0 orders, 1) = 0."""
+        txns = _txns(("CUST-ONE", 200, 42.0, 3, "store", "Home"))
+        f = _row(build_churn_feature_set(None, txns, SNAPSHOT_DATE), "CUST-ONE")
+        assert f["days_since_last_purchase"] == f["customer_tenure_days"] == 200
+        assert f["avg_order_value"] == f["total_lifetime_value"] == pytest.approx(42.0)
+        assert f["total_spend_90d"] == 0
+        assert f["avg_basket_size_6m"] == 0, "no orders in 180d: guarded denominator, not NaN"
+        assert f["purchase_frequency_180d"] == 0
+
+    def test_purchase_on_cutoff_day_is_zero_recency(self):
+        """Boundary: a purchase ON T is history (purchase_date <= T), so it
+        counts in every window and recency is 0."""
+        txns = _txns(("CUST-ONT", 0, 10.0, 1, "online", "Home"))
+        f = _row(build_churn_feature_set(None, txns, SNAPSHOT_DATE), "CUST-ONT")
+        assert f["days_since_last_purchase"] == 0
+        assert f["purchase_frequency_30d"] == 1
+
+    def test_window_edge_is_exclusive(self):
+        """Boundary: windows are purchase_date > T - N days, as in Glue. A
+        purchase exactly 90 days before T is outside the 90-day window; one at
+        89 days is inside. Both are inside the 180-day window."""
+        txns = _txns(("CUST-D90", 90, 10.0, 1, "store", "Home"),
+                     ("CUST-D89", 89, 10.0, 1, "store", "Home"))
+        f = compute_frequency_features(txns, SNAPSHOT_DATE)
+        assert _row(f, "CUST-D90")["purchase_frequency_90d"] == 0
+        assert _row(f, "CUST-D89")["purchase_frequency_90d"] == 1
+        assert _row(f, "CUST-D90")["purchase_frequency_180d"] == 1
+
+    def test_purchases_after_cutoff_are_ignored(self, sample_transactions):
+        """Leakage: adding a holdout purchase (after T) must not move any
+        feature. Only churn_label may change."""
+        before = build_churn_feature_set(None, sample_transactions, SNAPSHOT_DATE)
+        late = _txns(("CUST-10000001", -10, 500.0, 9, "online", "Electronics"))
+        after = build_churn_feature_set(None, pd.concat([sample_transactions, late]), SNAPSHOT_DATE)
+        cols = TestFullFeatureSet.REQUIRED_FEATURES
+        pd.testing.assert_frame_equal(before.set_index("customer_id")[cols],
+                                      after.set_index("customer_id")[cols])
+        assert _row(after, "CUST-10000001")["days_since_last_purchase"] == 60
+
+    def test_unknown_category_not_counted(self):
+        """Edge: 'unknown' is imputed by the Lab 2 transform, not a real
+        category, so it must not raise diversity."""
+        txns = _txns(("CUST-UNK", 10, 10.0, 1, "store", "Home"),
+                     ("CUST-UNK", 20, 10.0, 1, "store", "unknown"))
+        f = _row(compute_behavioral_features(txns), "CUST-UNK")
+        assert f["category_diversity_score"] == pytest.approx(1 / 8)
+
+    def test_customer_with_no_purchases_gets_one_complete_row(self):
+        """Boundary: a rostered customer with no purchases gets exactly one
+        row, with sentinel recency and zeros elsewhere, and no NaN."""
+        customers = pd.DataFrame({"customer_id": ["CUST-BUYER", "CUST-NOBUY"]})
+        txns = _txns(("CUST-BUYER", 10, 10.0, 1, "store", "Home"))
+        features = build_churn_feature_set(customers, txns, SNAPSHOT_DATE)
+        nobuy = features[features["customer_id"] == "CUST-NOBUY"]
+        assert len(nobuy) == 1
+        assert not nobuy[TestFullFeatureSet.REQUIRED_FEATURES].isna().any().any()
+        f = nobuy.iloc[0]
+        assert f["days_since_last_purchase"] == 999
+        assert f["customer_tenure_days"] == 0
+        assert f["purchase_frequency_180d"] == f["total_spend_90d"] == 0

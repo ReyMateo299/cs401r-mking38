@@ -87,7 +87,9 @@ resource "aws_iam_policy" "ml_engineer" {
           "sagemaker:ListApps",
           "sagemaker:CreateApp",
           "sagemaker:DeleteApp",
-          "sagemaker:CreatePresignedDomainUrl"
+          "sagemaker:CreatePresignedDomainUrl",
+          "sagemaker:AddTags",
+          "sagemaker:ListTags"
         ]
         Resource = [
           "arn:aws:sagemaker:*:*:domain/*",
@@ -167,7 +169,14 @@ resource "aws_iam_policy" "ml_engineer" {
           "ecr:BatchGetImage"
         ]
         Resource = "*"
-      }
+      },
+      {
+        Sid       = "PassSelfToSageMaker"
+        Effect    = "Allow"
+        Action    = ["iam:PassRole"]
+        Resource  = aws_iam_role.ml_engineer.arn
+        Condition = { StringEquals = { "iam:PassedToService" = "sagemaker.amazonaws.com" } }
+      },
     ]
   })
 }
