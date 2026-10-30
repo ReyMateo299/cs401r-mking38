@@ -13,9 +13,9 @@ me (Matt), not by the assistant.
 | 1 | `data/feature_engineering.py` (pandas port of Glue) + equivalence check | done 2026-10-29 | 18/18 kit tests pass locally (py3.11). `scripts/lab4_feature_equivalence.py` → `docs/lab4-feature-equivalence.txt`: 9,999/9,999 customers, all within 0.0001 (332 rows `avg_order_value`, 15 `online_to_store_ratio`: rounding, Spark HALF_UP) |
 | 2 | `test_data.py` TODOs (post-cutoff leakage, freshness); `test_features.py` TODOs + edge cases; champion regression test; `tests/test_fairness.py` | code complete 2026-10-30, not yet run | `test_features.py` 24 tests; `test_model.py` +3 regression tests (21); `test_fairness.py` 5 logic + 1 model test; `test_data.py` leakage + freshness TODOs done (Matt). Next: run `pytest tests/` locally. Phase 3 must put `slice_results` and `auc_roc` in the metrics |
 | 3 | `churn_model.train()` from `models/churn/train.py`; local `train_sagemaker.py` + `pytest tests/test_model.py` | in progress | Lab 3 `train_model()` takes argparse `args`. `train()` done with SimpleNamespace adapter; monotone constraint on recency added 2026-10-30 (see Decisions). Local 3.11: gates pass, 26 passed / 1 skipped. Done locally; container numbers pending first green build |
-| 4 | `PassSelfToSageMaker` statement in `infrastructure/modules/iam/main.tf` | todo | `AddTags`/`ListTags` already present (verified) |
-| 5 | Artifacts bucket, GitHub connection `AVAILABLE`, deploy `northstar-cicd`, subscribe + confirm email | todo | |
-| 6 | Green run → approve champion | todo | |
+| 4 | `PassSelfToSageMaker` statement in `infrastructure/modules/iam/main.tf` | done 2026-10-30 | Statement in MLEngineer policy, `terraform validate` ok; applied (first pipeline run passed TrainChurnModel with no PassRole error) |
+| 5 | Artifacts bucket, GitHub connection `AVAILABLE`, deploy `northstar-cicd`, subscribe + confirm email | done 2026-10-30 | Bucket versioning Enabled; `northstar-github` AVAILABLE; stack CREATE_COMPLETE; mattking29910@gmail.com confirmed (mking38@byu.edu left PendingConfirmation, expires ~2026-11-02, so it may show in snapshots); alarm OK |
+| 6 | Green run → approve champion | done 2026-10-30 | Build `northstar-ci:aa043c70-b106-4603-a354-c49ddeac06b9` on `6fd9275` SUCCEEDED; 28 + 24 pre_build tests passed. **Champion = v5, Approved**; pipeline approval Succeeded. v3/v4 (Oct 10/13, Lab 3) still PendingManualApproval and ignored. Keep v5 Approved until after the 8.3 capture |
 | 7 | Failure demo: BEFORE / AFTER FAILED RUN / AFTER REVERT, failed log, ALARM email png | todo | Record the ALARM→OK interval (instruction note 5) |
 | 8 | Lineage metadata on final package; `lab4-model-package.json`; MLflow ≥ 3 runs → `lab4-mlflow-runs.txt` | todo | |
 | 9 | `docs/lab4-xops-assessment.md` (5 headings) | todo | |
@@ -64,7 +64,12 @@ me (Matt), not by the assistant.
     CI still clears 0 comfortably. Slices: Bronze rec@10 0.4432, Silver
     0.1770, Gold 0.1538, Platinum 0.1429 (21 positives, so just reliable).
     The fairness flag now reads Bronze vs Platinum, about 30.0 pp.
-    The container (xgboost 1.7) will give different numbers; check them in the
-    first green build log.
+    **Container result (first green build, v5, 2026-10-30):** AUC 0.7855,
+    lift CI [0.0455, 0.0839], P@10 0.7167, R@10 0.3258. Tier rec@10: Bronze
+    0.446, Silver 0.1947, Gold 0.1538, Platinum 0.0952. The model gate passed
+    with the constraint in place; I reviewed the log and it looked right. The
+    container beat the local run (AUC 0.7777) and is close to the walkthrough's
+    container reference (0.7823). Champion warning for later runs:
+    `champion v5 auc=0.7855`.
 - **For Phase 8.** Mention this in `docs/lab4-xops-assessment.md` as a deliberate
   behavioural constraint encoding the business rule, not a workaround.
