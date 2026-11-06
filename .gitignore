@@ -14,3 +14,6 @@ data/*.csv
 data/processed/
 data/features/
 reports/
+
+# TA grading output: student records (FERPA); never commit
+grading/
