@@ -1,0 +1,16 @@
+{
+  "EndpointConfigName": "northstar-churn-canary-v1",
+  "ProductionVariants": [
+    {"VariantName": "champion", "ModelName": "northstar-churn-champion",
+     "InitialInstanceCount": 1, "InstanceType": "ml.t2.medium", "InitialVariantWeight": 9},
+    {"VariantName": "canary", "ModelName": "northstar-churn-canary",
+     "InitialInstanceCount": 1, "InstanceType": "ml.t2.medium", "InitialVariantWeight": 1}
+  ],
+  "DataCaptureConfig": {
+    "EnableCapture": true,
+    "InitialSamplingPercentage": 100,
+    "DestinationS3Uri": "s3://northstar-dev-data-480747229391/datacapture/",
+    "CaptureOptions": [{"CaptureMode": "Input"}, {"CaptureMode": "Output"}],
+    "CaptureContentTypeHeader": {"CsvContentTypes": ["text/csv"]}
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "AlarmName": "northstar-churn-rollback-latency",
+  "AlarmDescription": "Rollback trigger: canary p95 ModelLatency above 200 ms (200000 microseconds) for 2 consecutive minutes",
+  "Namespace": "AWS/SageMaker",
+  "MetricName": "ModelLatency",
+  "Dimensions": [
+    {"Name": "EndpointName", "Value": "northstar-churn-prod"},
+    {"Name": "VariantName", "Value": "canary"}
+  ],
+  "ExtendedStatistic": "p95",
+  "Period": 60,
+  "EvaluationPeriods": 2,
+  "Threshold": 200000,
+  "ComparisonOperator": "GreaterThanThreshold",
+  "TreatMissingData": "notBreaching"
+}
