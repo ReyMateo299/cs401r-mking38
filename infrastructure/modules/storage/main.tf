@@ -142,5 +142,9 @@ resource "aws_s3_bucket_lifecycle_configuration" "data" {
     expiration {
       days = var.datacapture_expiration_days
     }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 1
+    }
   }
 }
