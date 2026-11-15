@@ -9,7 +9,7 @@
   "DataCaptureConfig": {
     "EnableCapture": true,
     "InitialSamplingPercentage": 100,
-    "DestinationS3Uri": "s3://northstar-dev-data-480747229391/datacapture/",
+    "DestinationS3Uri": "s3://northstar-dev-data-ACCOUNT_ID/datacapture/",
     "CaptureOptions": [{"CaptureMode": "Input"}, {"CaptureMode": "Output"}],
     "CaptureContentTypeHeader": {"CsvContentTypes": ["text/csv"]}
   }
